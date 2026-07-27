@@ -1,0 +1,5 @@
+# ignore all JSON/CSV files except templates
+*.json
+!template.json
+*.csv
+!template.csv

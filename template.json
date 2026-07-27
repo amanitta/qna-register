@@ -1,0 +1,125 @@
+{
+  "label": "Example Assessment",
+  "threads": [
+    {
+      "id": "th_1000000000000_abc123",
+      "seq": 1,
+      "topic": "Margin model calibration",
+      "document": "Methodology Note, Section 3",
+      "status": "Open",
+      "createdAt": "2026-01-15T09:00:00.000Z",
+      "entries": [
+        {
+          "role": "Q",
+          "text": "Could you explain how the confidence level $\\alpha = 99.5\\%$ was chosen for the Initial Margin model, and whether it has been backtested over a full market cycle?",
+          "date": "2026-01-15T09:00:00.000Z",
+          "images": [],
+          "edited": false
+        }
+      ]
+    },
+    {
+      "id": "th_1000000000100_def456",
+      "seq": 2,
+      "topic": "Stress testing scenarios",
+      "document": "Stress Testing Policy",
+      "status": "Answered",
+      "createdAt": "2026-01-16T10:30:00.000Z",
+      "entries": [
+        {
+          "role": "Q",
+          "text": "Please list the historical and hypothetical stress scenarios currently used, and clarify how often they are reviewed.",
+          "date": "2026-01-16T10:30:00.000Z",
+          "images": [],
+          "edited": false
+        },
+        {
+          "role": "A",
+          "text": "The scenario set includes **12 historical** episodes (e.g. 2008 crisis, 2020 COVID shock) and **5 hypothetical** scenarios. They are reviewed **quarterly**, or ad-hoc if market conditions change materially.",
+          "date": "2026-01-16T14:05:00.000Z",
+          "images": [],
+          "edited": true
+        }
+      ]
+    },
+    {
+      "id": "th_1000000000200_ghi789",
+      "seq": 3,
+      "topic": "Liquidity risk add-on",
+      "document": "",
+      "status": "Answered",
+      "createdAt": "2026-01-17T11:00:00.000Z",
+      "entries": [
+        {
+          "role": "Q",
+          "text": "Is the liquidity add-on calculated per instrument or at portfolio level? Please reference the relevant formula.",
+          "date": "2026-01-17T11:00:00.000Z",
+          "images": [],
+          "edited": false
+        },
+        {
+          "role": "A",
+          "text": "See @Q-001 for the general methodology; the add-on itself is computed at instrument level using $LA_i = \\sigma_i \\cdot \\sqrt{h_i}$, then aggregated with a diversification benefit.",
+          "date": "2026-01-17T15:20:00.000Z",
+          "images": [],
+          "edited": false
+        }
+      ]
+    },
+    {
+      "id": "th_1000000000300_jkl012",
+      "seq": 4,
+      "topic": "Data quality controls",
+      "document": "Data Governance Framework",
+      "status": "Open",
+      "createdAt": "2026-01-18T08:45:00.000Z",
+      "entries": [
+        {
+          "role": "Q",
+          "text": "What automated controls are in place to detect stale or missing market data before it feeds into the risk engine?",
+          "date": "2026-01-18T08:45:00.000Z",
+          "images": [],
+          "edited": false
+        },
+        {
+          "role": "A",
+          "text": "A daily reconciliation job flags any price older than 24h or with a >5% jump versus the previous close for manual review.",
+          "date": "2026-01-18T16:10:00.000Z",
+          "images": [],
+          "edited": false
+        },
+        {
+          "role": "Q",
+          "text": "Thanks -- could you also share the escalation procedure when a flag is raised?",
+          "date": "2026-01-19T09:15:00.000Z",
+          "images": [],
+          "edited": false
+        }
+      ]
+    },
+    {
+      "id": "th_1000000000400_mno345",
+      "seq": 5,
+      "topic": "Closed example",
+      "document": "",
+      "status": "Closed",
+      "createdAt": "2026-01-20T12:00:00.000Z",
+      "entries": [
+        {
+          "role": "Q",
+          "text": "Example of a thread that has been fully addressed and closed out.",
+          "date": "2026-01-20T12:00:00.000Z",
+          "images": [],
+          "edited": false
+        },
+        {
+          "role": "A",
+          "text": "Confirmed as resolved, no further action needed.",
+          "date": "2026-01-20T13:00:00.000Z",
+          "images": [],
+          "edited": false
+        }
+      ]
+    }
+  ]
+}

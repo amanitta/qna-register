@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q&A Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>
+  :root{
+    --paper: #F6F5F1; --card: #FFFFFF; --ink: #1B2130; --ink-soft: #5B6272; --line: #DBD8CE;
+    --teal: #24594A; --teal-bg: #E7EFEB; --rust: #9C5630; --rust-bg: #F3E7DE;
+    --steel: #2F5DA6; --steel-bg: #E6ECF5; --closed: #767C87; --closed-bg: #E9E9E7; --focus: #2F5DA6;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans', sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
+  body.resizing{ user-select:none; cursor:col-resize; }
+  body.resizing-row{ user-select:none; cursor:row-resize; }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .serif{font-family:'Source Serif 4', serif;}
+  a, button, input, select, textarea{ font-family:inherit; }
+  button{ cursor:pointer; }
+  *:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+
+  .app{ display:flex; flex-direction:column; height:100vh; min-height:560px; }
+  header{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 24px; border-bottom:1px solid var(--line); background:var(--paper); flex-wrap:wrap; }
+  .brand{ display:flex; align-items:baseline; gap:12px; }
+  .brand h1{ font-family:'Source Serif 4', serif; font-weight:700; font-size:20px; margin:0; letter-spacing:0.2px; }
+  .header-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn{ border:1px solid var(--ink); background:var(--ink); color:var(--paper); padding:9px 14px; font-size:13px; font-weight:500; border-radius:3px; transition:opacity .12s ease; }
+  .btn:hover{ opacity:0.85; }
+  .btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .btn.secondary:hover{ background:var(--card); opacity:1; border-color:var(--ink); }
+  .btn.small{ padding:6px 10px; font-size:12px; }
+
+  .file-status-bar{ padding:7px 24px; border-bottom:1px solid var(--line); background:#FBFAF7; font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .file-status-bar.status-error{ color:var(--rust); background:var(--rust-bg); }
+  .file-status-bar .icon-btn{ font-size:12px; }
+
+  .main{ flex:1; display:flex; min-height:0; position:relative; }
+  .sidebar{ flex:0 0 auto; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+  .sidebar.collapsed{ flex:0 0 0px; border-right:none; }
+  .divider{ flex:0 0 10px; width:10px; cursor:col-resize; background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border-left:1px solid var(--line); border-right:1px solid var(--line); }
+  .divider:hover{ background:#EFEDE6; }
+  .divider-btn{ width:18px; height:18px; border-radius:3px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); padding:0; display:flex; align-items:center; justify-content:center; }
+  .divider-btn:hover{ border-color:var(--ink); color:var(--ink); }
+  .h-divider{
+    flex:0 0 10px; height:10px; cursor:row-resize; background:var(--paper); display:flex;
+    flex-direction:row; align-items:center; justify-content:center; gap:8px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .h-divider:hover{ background:#EFEDE6; }
+  .log.collapsed{ display:none; }
+  .composer.collapsed{ display:none; }
+
+  .filters{ padding:14px 16px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+  .filters input[type="search"]{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:3px; background:var(--card); font-size:13px; }
+  .pill-row{ display:flex; gap:6px; flex-wrap:wrap; }
+  .pill{ font-size:11px; font-family:'IBM Plex Mono', monospace; text-transform:uppercase; letter-spacing:0.04em; padding:5px 9px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); }
+  .pill.active{ border-color:var(--ink); color:var(--ink); background:var(--card); font-weight:600; }
+  .pill:hover{ border-color:var(--ink); }
+  select.filter-select{ width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:3px; background:var(--card); font-size:12.5px; color:var(--ink); }
+
+  .thread-list{ flex:1; overflow-y:auto; padding:8px; }
+  .thread-card{ padding:12px 12px; border:1px solid transparent; border-radius:4px; margin-bottom:4px; cursor:pointer; }
+  .thread-card:hover{ background:var(--card); border-color:var(--line); }
+  .thread-card.selected{ background:var(--card); border-color:var(--ink); }
+  .thread-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .stamp{ font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; letter-spacing:0.06em; border:1.4px solid var(--ink); border-radius:2px; padding:1px 6px; white-space:nowrap; background:var(--card); }
+  .stamp.link{ cursor:pointer; border-color:var(--steel); color:var(--steel); }
+  .stamp.link:hover{ background:var(--steel-bg); }
+  .status-badge{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; padding:2px 7px; border-radius:10px; white-space:nowrap; }
+  .status-open{ background:var(--teal-bg); color:var(--teal); }
+  .status-answered{ background:var(--steel-bg); color:var(--steel); }
+  .status-closed{ background:var(--closed-bg); color:var(--closed); }
+  .thread-topic{ font-weight:600; font-size:13.5px; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .thread-meta{ font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .thread-snippet{ font-size:12px; color:var(--ink-soft); margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .empty-list{ padding:32px 20px; text-align:center; color:var(--ink-soft); font-size:13px; }
+
+  .detail{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; }
+  .detail.collapsed{ display:none; }
+  .detail-empty{ flex:1; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:14px; text-align:center; padding:40px; }
+  .detail-header{ padding:20px 28px 16px; border-bottom:1px solid var(--line); }
+  .detail-header-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:10px; }
+  .detail-title-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1; min-width:0; }
+  .detail-title-input{
+    font-family:'Source Serif 4', serif; font-weight:700; font-size:18px; border:1px solid transparent;
+    background:transparent; padding:3px 6px; border-radius:3px; flex:1; min-width:120px; color:var(--ink);
+  }
+  .detail-title-input:hover{ border-color:var(--line); }
+  .detail-title-input:focus{ border-color:var(--ink); background:var(--card); }
+  .detail-fields{ display:flex; gap:20px; flex-wrap:wrap; margin-top:10px; }
+  .field{ display:flex; flex-direction:column; gap:3px; }
+  .field label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); font-weight:600; }
+  .field input, .field select{ border:1px solid var(--line); border-radius:3px; padding:6px 8px; font-size:12.5px; background:var(--card); min-width:160px; }
+  .icon-btn{ background:none; border:none; color:var(--ink-soft); font-size:12px; text-decoration:underline; padding:4px; }
+  .icon-btn:hover{ color:var(--ink); }
+
+  .log{ flex:1; min-height:0; overflow-y:auto; padding:20px 28px; display:flex; flex-direction:column; gap:12px; }
+  .entry{ display:flex; width:100%; }
+  .entry.role-Q{ justify-content:flex-start; }
+  .entry.role-A{ justify-content:flex-end; }
+  .entry-card{ max-width:76%; border-radius:8px; padding:12px 14px; min-width:0; }
+  .entry.role-Q .entry-card{ background:var(--card); border:1px solid var(--line); border-left:3px solid var(--rust); }
+  .entry.role-A .entry-card{ background:var(--teal-bg); border:1px solid var(--teal); border-right:3px solid var(--teal); }
+  .entry-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .entry-role{ font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--rust); }
+  .entry.role-A .entry-role{ color:var(--teal); }
+  .entry-date{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); }
+  .edited-tag{ font-size:10.5px; color:var(--ink-soft); font-style:italic; }
+  .entry-edit-btn{ margin-left:auto; background:none; border:none; font-size:11px; color:var(--ink-soft); text-decoration:underline; padding:2px; }
+  .entry-edit-btn:hover{ color:var(--ink); }
+  .entry-text{ font-size:13.5px; line-height:1.55; word-break:break-word; }
+  .entry-text p{ margin:0 0 8px; }
+  .entry-text p:last-child{ margin-bottom:0; }
+  .entry-text ul, .entry-text ol{ margin:4px 0 8px 20px; padding:0; }
+  .entry-text li{ margin-bottom:2px; }
+  .entry-text code{ background:rgba(0,0,0,0.07); padding:1px 4px; border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
+  .entry-text pre{ background:rgba(0,0,0,0.07); padding:8px 10px; border-radius:4px; overflow-x:auto; }
+  .entry-text pre code{ background:none; padding:0; }
+  .entry-text strong{ font-weight:600; }
+  .entry-text a{ color:var(--steel); }
+  .entry-text blockquote{ margin:4px 0; padding-left:10px; border-left:3px solid var(--line); color:var(--ink-soft); }
+  .entry-text .katex-display{ margin:6px 0; overflow-x:auto; overflow-y:hidden; }
+  .mention{ font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--steel); background:var(--steel-bg); padding:0 4px; border-radius:3px; cursor:pointer; }
+  .mention:hover{ text-decoration:underline; }
+  .entry-images{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .entry-images img{ max-width:160px; max-height:160px; border-radius:4px; border:1px solid var(--line); cursor:pointer; display:block; }
+  .edit-entry-box textarea{ width:100%; min-height:70px; border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:13.5px; font-family:inherit; margin-bottom:8px; }
+  .edit-entry-actions{ display:flex; gap:8px; justify-content:flex-end; }
+
+  .composer{ border-top:1px solid var(--line); padding:16px 28px 20px; overflow-y:auto; }
+  .composer-toggle{ display:flex; gap:6px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+  .role-toggle{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; padding:6px 12px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); }
+  .role-toggle.active-Q{ border-color:var(--rust); color:var(--rust); background:var(--rust-bg); font-weight:600; }
+  .role-toggle.active-A{ border-color:var(--teal); color:var(--teal); background:var(--teal-bg); font-weight:600; }
+  .composer-images, .modal-images{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .composer-images .thumb, .modal-images .thumb{ position:relative; }
+  .composer-images img, .modal-images img{ width:64px; height:64px; object-fit:cover; border-radius:4px; border:1px solid var(--line); display:block; }
+  .composer-images .remove, .modal-images .remove{ position:absolute; top:-6px; right:-6px; background:var(--ink); color:var(--paper); border-radius:50%; width:18px; height:18px; font-size:11px; line-height:16px; text-align:center; border:none; padding:0; }
+  .textarea-wrap{ position:relative; }
+  .composer textarea, .modal textarea{ width:100%; min-height:64px; resize:vertical; border:1px solid var(--line); border-radius:4px; padding:10px 12px; font-size:13.5px; font-family:inherit; margin-bottom:8px; }
+  .composer-actions{ display:flex; justify-content:flex-end; }
+  .hint-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:-4px 0 8px; flex-wrap:wrap; }
+  .paste-hint{ font-size:11px; color:var(--ink-soft); }
+  .preview-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); font-weight:600; margin:2px 0 4px; }
+  .live-preview{ border:1px dashed var(--line); border-radius:6px; padding:10px 12px; margin-bottom:10px; background:var(--paper); min-height:20px; font-size:13.5px; line-height:1.5; }
+  .live-preview .empty-note{ color:var(--ink-soft); font-style:italic; font-size:12.5px; }
+
+  .mention-autocomplete{ position:absolute; top:100%; left:0; z-index:30; background:var(--card); border:1px solid var(--line); border-radius:4px; box-shadow:0 6px 18px rgba(27,33,48,0.15); max-height:180px; overflow-y:auto; min-width:220px; display:none; margin-top:2px; }
+  .mention-option{ padding:6px 10px; font-size:12.5px; cursor:pointer; }
+  .mention-option:hover{ background:var(--paper); }
+
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(27,33,48,0.35); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-backdrop.show{ display:flex; }
+  .modal{ background:var(--card); border-radius:6px; padding:24px 26px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(27,33,48,0.25); }
+  .modal h2{ font-family:'Source Serif 4', serif; font-size:17px; margin:0 0 16px; }
+  .modal .field{ width:100%; margin-bottom:14px; }
+  .modal .field input, .modal .field textarea{ width:100%; }
+  .modal .field textarea{ min-height:80px; resize:vertical; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
+  .modal-toolbar{ display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+
+  .lightbox{ position:fixed; inset:0; background:rgba(27,33,48,0.75); display:none; align-items:center; justify-content:center; z-index:60; padding:24px; }
+  .lightbox.show{ display:flex; }
+  .lightbox img{ max-width:90vw; max-height:90vh; border-radius:6px; }
+
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:5px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @media (max-width:760px){
+    .main{ flex-direction:column; }
+    .sidebar{ flex:0 0 auto !important; width:100% !important; border-right:none; border-bottom:1px solid var(--line); max-height:38vh; }
+    .divider{ display:none; }
+    .detail-fields{ gap:12px; }
+    .field input, .field select{ min-width:130px; }
+    .entry-card{ max-width:88%; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand"><h1>Q&amp;A Register</h1></div>
+    <div class="header-actions">
+      <button class="btn secondary" id="openFileBtn" title="Pick any register JSON file — this switches away from whatever is currently connected.">Open shared file…</button>
+      <button class="btn secondary" id="saveFileBtn">Save</button>
+      <button class="btn secondary" id="exportBtn">Export CSV</button>
+      <input type="file" id="legacyOpenInput" accept="application/json" style="display:none">
+      <button class="btn" id="newThreadBtn">+ New question</button>
+    </div>
+  </header>
+
+  <div class="file-status-bar" id="fileStatusBar"><span id="fileStatus"></span></div>
+
+  <div class="main">
+    <aside class="sidebar" id="sidebarPanel">
+      <div class="filters">
+        <input type="search" id="searchInput" placeholder="Search questions and answers…">
+        <div class="pill-row" id="statusPills">
+          <button class="pill active" data-status="all">All</button>
+          <button class="pill" data-status="Open">Open</button>
+          <button class="pill" data-status="Answered">Answered</button>
+          <button class="pill" data-status="Closed">Closed</button>
+        </div>
+        <select class="filter-select" id="topicFilter"><option value="all">All topics</option></select>
+        <select class="filter-select" id="docFilter"><option value="all">All related documents</option></select>
+      </div>
+      <div class="thread-list" id="threadList"></div>
+    </aside>
+
+    <div class="divider" id="divider">
+      <button class="divider-btn" id="collapseSidebarBtn" title="Collapse/expand list">⟨</button>
+      <button class="divider-btn" id="collapseDetailBtn" title="Collapse/expand details">⟩</button>
+    </div>
+
+    <section class="detail" id="detail"></section>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2>New question</h2>
+    <div class="field">
+      <label for="mTopic">Topic</label>
+      <input id="mTopic" type="text" list="topicOptions" placeholder="e.g. Margin methodology">
+      <datalist id="topicOptions"></datalist>
+    </div>
+    <div class="field">
+      <label for="mDoc">Related document</label>
+      <input id="mDoc" type="text" list="docOptions" placeholder="e.g. Risk Policy v3.2">
+      <datalist id="docOptions"></datalist>
+    </div>
+    <div class="field">
+      <label for="mQuestion">Question</label>
+      <div class="modal-toolbar">
+        <button class="btn secondary small" id="modalAttachBtn" type="button">+ Image</button>
+        <span class="paste-hint">Markdown &amp; $LaTeX$ supported. Paste an image, or attach one. Use @Q-001 to reference.</span>
+      </div>
+      <input type="file" id="modalAttachInput" accept="image/*" multiple style="display:none">
+      <div class="modal-images" id="modalImagesWrap"></div>
+      <div class="textarea-wrap">
+        <textarea id="mQuestion" placeholder="Write the question to the CCP…"></textarea>
+        <div class="mention-autocomplete" id="modalMentionBox"></div>
+      </div>
+      <div class="preview-label">Preview</div>
+      <div class="live-preview entry-text" id="modalPreview"><span class="empty-note">Nothing to preview yet.</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Cancel</button>
+      <button class="btn" id="modalCreate">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <img id="lightboxImg" src="" alt="attachment preview">
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+(function(){
+  const STORAGE_KEY = 'qna-register-data-v2';
+  const UI_KEY = 'qna-register-ui-v2';
+  const IDB_NAME = 'qna-register-fs';
+  const IDB_STORE = 'handles';
+  const STATUSES = ['Open','Answered','Closed'];
+
+  let state = { label: 'Assessment', threads: [] };
+  let ui = { sidebarWidth: 340, sidebarCollapsed: false, detailCollapsed: false, composerHeight: 220, logCollapsed: false, composerCollapsed: false };
+  let selectedId = null;
+  let filters = { status: 'all', topic: 'all', doc: 'all', search: '' };
+  let composerRole = 'Q';
+  let composerImages = [];
+  let modalImages = [];
+  let editingEntryIdx = null;
+
+  let fileHandle = null;
+  let fileName = null;
+  const fsSupported = typeof window.showOpenFilePicker === 'function';
+
+  const $ = (sel) => document.querySelector(sel);
+  const threadListEl = $('#threadList');
+  const detailEl = $('#detail');
+  const sidebarEl = $('#sidebarPanel');
+  const fileStatusBar = $('#fileStatusBar');
+  const fileStatusEl = $('#fileStatus');
+
+  function fmtDateTime(iso){
+    const d = new Date(iso);
+    const datePart = d.toLocaleDateString(undefined, { day:'2-digit', month:'short', year:'numeric' });
+    const timePart = d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit', hour12:false });
+    return datePart + ', ' + timePart;
+  }
+  function statusClass(status){
+    if(status === 'Open') return 'status-open';
+    if(status === 'Answered') return 'status-answered';
+    if(status === 'Closed') return 'status-closed';
+    return 'status-open';
+  }
+  function nextSeq(){ return state.threads.reduce((m,t)=> Math.max(m, t.seq||0), 0) + 1; }
+  function stampId(seq){ return 'Q-' + String(seq).padStart(3,'0'); }
+  function migrateStatus(s){
+    if(s === 'Follow-up needed') return 'Open';
+    if(STATUSES.includes(s)) return s;
+    return 'Open';
+  }
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+
+  // ---------- IndexedDB: remembers the picked file handle across reloads ----------
+  function idbOpen(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSet(key, value){
+    try{
+      const db = await idbOpen();
+      return new Promise((resolve) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    }catch(e){ return false; }
+  }
+  async function idbGet(key){
+    try{
+      const db = await idbOpen();
+      return new Promise((resolve) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    }catch(e){ return null; }
+  }
+
+  // ---------- Local cache (safety net, always active) ----------
+  function cacheLocally(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ console.error('Local cache error', e); }
+  }
+  function loadLocalCache(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.threads)){
+          parsed.threads.forEach(t => {
+            t.status = migrateStatus(t.status);
+            (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
+          });
+          parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
+          state = parsed;
+        }
+      }
+    }catch(e){ console.log('No local cache found, starting fresh.', e); }
+  }
+  function loadUiPrefs(){
+    try{ const raw = localStorage.getItem(UI_KEY); if(raw) ui = Object.assign(ui, JSON.parse(raw)); }
+    catch(e){ /* defaults */ }
+  }
+  function saveUiPrefs(){
+    try{ localStorage.setItem(UI_KEY, JSON.stringify(ui)); }
+    catch(e){ console.error('UI prefs save error', e); }
+  }
+
+  // ---------- Shared file connection ----------
+  function refreshStatusText(){
+    fileStatusBar.classList.remove('status-error');
+    if(fileHandle){
+      fileStatusEl.textContent = 'Connected to ' + fileName + (window.__lastSavedAt ? ' · saved ' + window.__lastSavedAt : ' · not saved yet') + ' — use "Open shared file…" to switch to a different register.';
+    } else if(fsSupported){
+      fileStatusEl.textContent = 'Not connected to a file — working locally in this browser only. Use "Open shared file…" to open a downloaded copy of the register JSON, or "Save" to create one.';
+    } else {
+      fileStatusEl.textContent = fileName
+        ? ('Loaded ' + fileName + ' — this browser can\'t save back to it automatically. Click "Save" to download an updated copy, then re-upload it wherever the register is shared.')
+        : 'This browser can\'t connect directly to a file. Use "Open shared file…" to load the register JSON, and "Save" to download an updated copy to re-upload wherever the register is shared.';
+    }
+  }
+  function showFileError(msg){
+    fileStatusBar.classList.add('status-error');
+    fileStatusEl.textContent = msg;
+  }
+
+  function loadStateFromJsonText(text){
+    try{
+      const parsed = JSON.parse(text);
+      if(!parsed || !Array.isArray(parsed.threads)) throw new Error('invalid');
+      parsed.threads.forEach(t => {
+        t.status = migrateStatus(t.status);
+        (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
+      });
+      parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
+      state = parsed;
+      cacheLocally();
+      selectedId = null;
+      populateFilterOptions(); renderList(); renderDetail();
+      return true;
+    }catch(e){ return false; }
+  }
+
+  async function writeToHandle(handle, text){
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+  }
+
+  async function persist(){
+    cacheLocally();
+    if(fileHandle){
+      try{
+        await writeToHandle(fileHandle, JSON.stringify(state, null, 2));
+        window.__lastSavedAt = new Date().toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+        refreshStatusText();
+      }catch(e){
+        console.error('Auto-save to shared file failed', e);
+        fileHandle = null;
+        showFileError('Lost connection to the shared file. Your latest changes are cached in this browser — click "Open shared file…" to reconnect, or "Save" to download a copy.');
+      }
+    }
+  }
+
+  async function openSharedFile(){
+    if(fsSupported){
+      try{
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'Q&A Register JSON', accept: { 'application/json': ['.json'] } }],
+        });
+        const file = await handle.getFile();
+        const text = await file.text();
+        if(!loadStateFromJsonText(text)){ alert('This file doesn\'t look like a Q&A Register JSON file.'); return; }
+        fileHandle = handle; fileName = file.name; window.__lastSavedAt = null;
+        await idbSet('registerFile', handle);
+        refreshStatusText();
+      }catch(e){ if(e.name !== 'AbortError') console.error(e); }
+    } else {
+      $('#legacyOpenInput').click();
+    }
+  }
+
+  async function saveNow(){
+    if(fsSupported && fileHandle){
+      await persist();
+      return;
+    }
+    if(fsSupported && !fileHandle){
+      try{
+        const handle = await window.showSaveFilePicker({
+          suggestedName: (state.label || 'qna-register').replace(/[^a-z0-9\-_]+/gi,'_') + '.json',
+          types: [{ description: 'Q&A Register JSON', accept: { 'application/json': ['.json'] } }],
+        });
+        fileHandle = handle; fileName = handle.name;
+        await idbSet('registerFile', handle);
+        await persist();
+        refreshStatusText();
+      }catch(e){ if(e.name !== 'AbortError') console.error(e); }
+      return;
+    }
+    downloadBlob(JSON.stringify(state, null, 2), 'application/json', (state.label || 'qna-register').replace(/[^a-z0-9\-_]+/gi,'_') + '.json');
+  }
+
+  function showReconnectPrompt(handle){
+    fileStatusEl.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = 'Reconnect to ' + handle.name + ' to resume saving straight to the shared file. ';
+    const btn = document.createElement('button');
+    btn.className = 'icon-btn'; btn.type = 'button'; btn.textContent = 'Reconnect';
+    btn.addEventListener('click', async () => {
+      try{
+        const perm = await handle.requestPermission({ mode:'readwrite' });
+        if(perm === 'granted'){
+          const file = await handle.getFile();
+          const text = await file.text();
+          if(loadStateFromJsonText(text)){ fileHandle = handle; fileName = file.name; refreshStatusText(); }
+        }
+      }catch(e){ console.error(e); }
+    });
+    fileStatusEl.appendChild(span);
+    fileStatusEl.appendChild(btn);
+  }
+
+  async function tryReconnect(){
+    if(!fsSupported){ refreshStatusText(); return; }
+    const handle = await idbGet('registerFile');
+    if(!handle){ refreshStatusText(); return; }
+    try{
+      const perm = await handle.queryPermission({ mode:'readwrite' });
+      if(perm === 'granted'){
+        const file = await handle.getFile();
+        const text = await file.text();
+        if(loadStateFromJsonText(text)){ fileHandle = handle; fileName = file.name; refreshStatusText(); return; }
+      }
+      showReconnectPrompt(handle);
+    }catch(e){ console.error('Reconnect check failed', e); refreshStatusText(); }
+  }
+
+  function downloadBlob(content, type, filename){
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Filters / list ----------
+  function uniqueValues(field){
+    const set = new Set();
+    state.threads.forEach(t => { if(t[field]) set.add(t[field]); });
+    return Array.from(set).sort((a,b)=> a.localeCompare(b));
+  }
+  function populateFilterOptions(){
+    const topicSel = $('#topicFilter'); const docSel = $('#docFilter');
+    const curTopic = topicSel.value, curDoc = docSel.value;
+    topicSel.innerHTML = '<option value="all">All topics</option>' + uniqueValues('topic').map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    docSel.innerHTML = '<option value="all">All related documents</option>' + uniqueValues('document').map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    if(Array.from(topicSel.options).some(o=>o.value===curTopic)) topicSel.value = curTopic;
+    if(Array.from(docSel.options).some(o=>o.value===curDoc)) docSel.value = curDoc;
+    $('#topicOptions').innerHTML = uniqueValues('topic').map(t => `<option value="${escapeHtml(t)}">`).join('');
+    $('#docOptions').innerHTML = uniqueValues('document').map(d => `<option value="${escapeHtml(d)}">`).join('');
+  }
+  function filteredThreads(){
+    return state.threads.filter(t => {
+      if(filters.status !== 'all' && t.status !== filters.status) return false;
+      if(filters.topic !== 'all' && t.topic !== filters.topic) return false;
+      if(filters.doc !== 'all' && t.document !== filters.doc) return false;
+      if(filters.search){
+        const q = filters.search.toLowerCase();
+        const hay = [t.topic, t.document, ...t.entries.map(e=>e.text)].join(' ').toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a,b)=> (a.seq||0) - (b.seq||0));
+  }
+  function lastEntrySnippet(t){
+    if(!t.entries.length) return 'No entries yet.';
+    const last = t.entries[t.entries.length-1];
+    const roleLabel = last.role === 'Q' ? 'Q: ' : 'A: ';
+    return roleLabel + (last.text || (last.images && last.images.length ? '[image attached]' : ''));
+  }
+  function selectThread(id){
+    selectedId = id; composerRole = 'Q'; composerImages = []; editingEntryIdx = null;
+    renderList(); renderDetail();
+  }
+  function renderList(){
+    const items = filteredThreads();
+    if(state.threads.length === 0){
+      threadListEl.innerHTML = `<div class="empty-list">No questions yet.<br>Create the first one to start the register.</div>`;
+      return;
+    }
+    if(items.length === 0){
+      threadListEl.innerHTML = `<div class="empty-list">No questions match these filters.</div>`;
+      return;
+    }
+    threadListEl.innerHTML = items.map(t => `
+      <div class="thread-card ${t.id===selectedId ? 'selected':''}" data-id="${t.id}">
+        <div class="thread-top">
+          <span class="stamp">${stampId(t.seq)}</span>
+          <span class="status-badge ${statusClass(t.status)}">${escapeHtml(t.status)}</span>
+        </div>
+        <div class="thread-topic">${escapeHtml(t.topic || 'Untitled topic')}</div>
+        <div class="thread-meta">${escapeHtml(t.document || 'No document linked')}</div>
+        <div class="thread-snippet">${escapeHtml(lastEntrySnippet(t))}</div>
+      </div>
+    `).join('');
+    threadListEl.querySelectorAll('.thread-card').forEach(card => {
+      card.addEventListener('click', () => selectThread(card.getAttribute('data-id')));
+    });
+  }
+  function openLightbox(src){ $('#lightboxImg').src = src; $('#lightbox').classList.add('show'); }
+
+  // ---------- Content rendering: math + markdown + mentions ----------
+  function renderContent(raw){
+    if(!raw) return '';
+    const mathStore = [];
+    let text = raw;
+    text = text.replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => {
+      const idx = mathStore.length;
+      let html;
+      try{ html = katex.renderToString(expr.trim(), { throwOnError:false, displayMode:true }); }
+      catch(e){ html = escapeHtml(m); }
+      mathStore.push(html);
+      return '\u0002MATH' + idx + '\u0002';
+    });
+    text = text.replace(/\$([^\$\n]+?)\$/g, (m, expr) => {
+      const idx = mathStore.length;
+      let html;
+      try{ html = katex.renderToString(expr.trim(), { throwOnError:false, displayMode:false }); }
+      catch(e){ html = escapeHtml(m); }
+      mathStore.push(html);
+      return '\u0002MATH' + idx + '\u0002';
+    });
+    let out;
+    try{ out = marked.parse(text, { breaks:true }); out = DOMPurify.sanitize(out); }
+    catch(e){ out = escapeHtml(text).replace(/\n/g,'<br>'); }
+    out = out.replace(/\u0002MATH(\d+)\u0002/g, (m, idx) => mathStore[Number(idx)] || '');
+    return out;
+  }
+  function linkifyMentions(root, clickable){
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const textNodes = [];
+    let node;
+    while((node = walker.nextNode())) textNodes.push(node);
+    const re = /@(Q-\d{1,4})\b/gi;
+    textNodes.forEach(tn => {
+      const text = tn.nodeValue;
+      re.lastIndex = 0;
+      if(!re.test(text)) return;
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let lastIndex = 0, m;
+      while((m = re.exec(text))){
+        if(m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+        const seq = parseInt(m[1].split('-')[1], 10);
+        const target = state.threads.find(x => x.seq === seq);
+        if(target){
+          const span = document.createElement('span');
+          span.className = 'mention';
+          span.textContent = m[0];
+          if(clickable) span.setAttribute('data-jump', target.id);
+          frag.appendChild(span);
+        } else { frag.appendChild(document.createTextNode(m[0])); }
+        lastIndex = re.lastIndex;
+      }
+      if(lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+      tn.parentNode.replaceChild(frag, tn);
+    });
+  }
+  function updateLivePreview(textEl, previewEl){
+    const val = textEl.value.trim();
+    if(!val){ previewEl.innerHTML = '<span class="empty-note">Nothing to preview yet.</span>'; return; }
+    previewEl.innerHTML = renderContent(val);
+    linkifyMentions(previewEl, false);
+  }
+
+  function renderDetail(){
+    const t = state.threads.find(x => x.id === selectedId);
+    if(!t){
+      detailEl.innerHTML = `<div class="detail-empty">Select a question on the left, or create a new one to start tracking it here.</div>`;
+      return;
+    }
+    const entriesHtml = t.entries.map((e, idx) => {
+      if(editingEntryIdx === idx){
+        return `
+        <div class="entry role-${e.role}">
+          <div class="entry-card" style="max-width:90%;">
+            <div class="entry-head">
+              <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
+              <span class="entry-date mono">${fmtDateTime(e.date)}</span>
+            </div>
+            <div class="edit-entry-box">
+              <textarea id="editEntryText">${escapeHtml(e.text || '')}</textarea>
+              <div class="edit-entry-actions">
+                <button class="btn secondary small" id="cancelEditEntry" type="button">Cancel</button>
+                <button class="btn small" id="saveEditEntry" type="button" data-idx="${idx}">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+      const imagesHtml = (e.images && e.images.length) ? `<div class="entry-images">${e.images.map(src => `<img src="${src}" data-src="${src}">`).join('')}</div>` : '';
+      const editedTag = e.edited ? `<span class="edited-tag" title="Edited ${fmtDateTime(e.editedAt)}">(edited)</span>` : '';
+      return `
+      <div class="entry role-${e.role}">
+        <div class="entry-card">
+          <div class="entry-head">
+            <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
+            <span class="entry-date mono">${fmtDateTime(e.date)}</span>
+            ${editedTag}
+            <button class="entry-edit-btn" data-edit-idx="${idx}" type="button">Edit</button>
+          </div>
+          <div class="entry-text" data-entry-idx="${idx}">${renderContent(e.text)}</div>
+          ${imagesHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+    detailEl.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-header-top">
+          <div class="detail-title-row">
+            <span class="stamp">${stampId(t.seq)}</span>
+            <input class="detail-title-input" id="editTitleTop" value="${escapeHtml(t.topic)}" title="Click to edit the question's title" placeholder="Untitled topic">
+          </div>
+          <button class="icon-btn" id="deleteThreadBtn">Delete</button>
+        </div>
+        <div class="detail-fields">
+          <div class="field"><label for="editDoc">Related document</label><input id="editDoc" type="text" value="${escapeHtml(t.document)}"></div>
+          <div class="field">
+            <label for="editStatus">Status</label>
+            <select id="editStatus">${STATUSES.map(s => `<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Opened</label><input type="text" value="${fmtDateTime(t.createdAt)}" disabled></div>
+        </div>
+      </div>
+      <div class="log" id="logPanel">${entriesHtml || '<div class="empty-list">No entries yet. Add the first message below.</div>'}</div>
+      <div class="h-divider" id="hDivider">
+        <button class="divider-btn" id="collapseLogBtn" title="Collapse/expand messages">▲</button>
+        <button class="divider-btn" id="collapseComposerBtn" title="Collapse/expand message box">▼</button>
+      </div>
+      <div class="composer" id="composerPanel">
+        <div class="composer-toggle">
+          <button class="role-toggle ${composerRole==='Q'?'active-Q':''}" data-role="Q">Question</button>
+          <button class="role-toggle ${composerRole==='A'?'active-A':''}" data-role="A">Answer</button>
+          <button class="btn secondary small" id="attachImgBtn" type="button">+ Image</button>
+        </div>
+        <input type="file" id="attachImgInput" accept="image/*" multiple style="display:none">
+        <div class="composer-images" id="composerImagesWrap"></div>
+        <div class="hint-row"><span class="paste-hint">Markdown &amp; $LaTeX$ supported. Paste an image, or use "+ Image". Type @Q-001 to reference another question.</span></div>
+        <div class="textarea-wrap">
+          <textarea id="composerText" placeholder="Add a ${composerRole === 'Q' ? 'follow-up question' : 'answer'}…"></textarea>
+          <div class="mention-autocomplete" id="composerMentionBox"></div>
+        </div>
+        <div class="preview-label">Preview</div>
+        <div class="live-preview entry-text" id="composerPreview"><span class="empty-note">Nothing to preview yet.</span></div>
+        <div class="composer-actions"><button class="btn" id="addEntryBtn">Add entry</button></div>
+      </div>
+    `;
+
+    renderComposerImages();
+    detailEl.querySelectorAll('.entry-text').forEach(el => linkifyMentions(el, true));
+    detailEl.querySelectorAll('.mention[data-jump]').forEach(el => {
+      el.addEventListener('click', () => selectThread(el.getAttribute('data-jump')));
+    });
+
+    $('#editTitleTop').addEventListener('change', (e) => {
+      t.topic = e.target.value.trim();
+      persist(); populateFilterOptions(); renderList();
+    });
+    $('#editDoc').addEventListener('change', (e) => { t.document = e.target.value.trim(); persist(); populateFilterOptions(); renderList(); });
+    $('#editStatus').addEventListener('change', (e) => { t.status = e.target.value; persist(); renderList(); });
+    $('#deleteThreadBtn').addEventListener('click', () => {
+      if(confirm('Delete this question and its full history? This cannot be undone.')){
+        state.threads = state.threads.filter(x => x.id !== t.id);
+        selectedId = null; persist(); populateFilterOptions(); renderList(); renderDetail();
+      }
+    });
+    detailEl.querySelectorAll('.role-toggle').forEach(btn => {
+      btn.addEventListener('click', () => { composerRole = btn.getAttribute('data-role'); renderDetail(); });
+    });
+    detailEl.querySelectorAll('.entry-images img').forEach(img => {
+      img.addEventListener('click', () => openLightbox(img.getAttribute('data-src')));
+    });
+    detailEl.querySelectorAll('.entry-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => { editingEntryIdx = Number(btn.getAttribute('data-edit-idx')); renderDetail(); });
+    });
+    const cancelEditBtn = $('#cancelEditEntry');
+    if(cancelEditBtn) cancelEditBtn.addEventListener('click', () => { editingEntryIdx = null; renderDetail(); });
+    const saveEditBtn = $('#saveEditEntry');
+    if(saveEditBtn) saveEditBtn.addEventListener('click', () => {
+      const idx = Number(saveEditBtn.getAttribute('data-idx'));
+      const newText = $('#editEntryText').value.trim();
+      const entry = t.entries[idx];
+      if(newText !== (entry.text || '')){
+        entry.text = newText; entry.edited = true; entry.editedAt = new Date().toISOString();
+        persist(); renderList();
+      }
+      editingEntryIdx = null;
+      renderDetail();
+    });
+
+    const attachBtn = $('#attachImgBtn');
+    const attachInput = $('#attachImgInput');
+    attachBtn.addEventListener('click', () => attachInput.click());
+    attachInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      files.forEach(file => addImageFile(file, composerImages, renderComposerImages));
+      attachInput.value = '';
+    });
+
+    const textarea = $('#composerText');
+    const previewEl = $('#composerPreview');
+    textarea.addEventListener('paste', (e) => {
+      const items = Array.from(e.clipboardData ? e.clipboardData.items : []);
+      const imageItem = items.find(it => it.type && it.type.startsWith('image/'));
+      if(imageItem){ e.preventDefault(); const file = imageItem.getAsFile(); if(file) addImageFile(file, composerImages, renderComposerImages); }
+    });
+    textarea.addEventListener('input', () => updateLivePreview(textarea, previewEl));
+    setupMentionAutocomplete(textarea, $('#composerMentionBox'));
+
+    $('#addEntryBtn').addEventListener('click', () => {
+      const text = textarea.value.trim();
+      if(!text && composerImages.length === 0) return;
+      t.entries.push({ role: composerRole, text, date: new Date().toISOString(), images: composerImages.slice(), edited:false });
+      if(composerRole === 'Q' && (t.status === 'Answered' || t.status === 'Closed')){ t.status = 'Open'; }
+      else if(composerRole === 'A' && t.status !== 'Closed'){ t.status = 'Answered'; }
+      composerRole = composerRole === 'Q' ? 'A' : 'Q';
+      composerImages = [];
+      persist();
+      renderList(); renderDetail();
+    });
+
+    const hDivider = detailEl.querySelector('#hDivider');
+    if(hDivider){
+      hDivider.addEventListener('mousedown', startComposerDrag);
+      hDivider.addEventListener('touchstart', startComposerDrag, { passive:true });
+    }
+    bindCollapseToggle(detailEl.querySelector('#collapseLogBtn'), 'logCollapsed', 'composerCollapsed', applyVSplit, updateVDividerIcons);
+    bindCollapseToggle(detailEl.querySelector('#collapseComposerBtn'), 'composerCollapsed', 'logCollapsed', applyVSplit, updateVDividerIcons);
+    applyVSplit();
+    updateVDividerIcons();
+
+    const logEl = detailEl.querySelector('#logPanel');
+    if(logEl) logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function renderComposerImages(){
+    const wrap = $('#composerImagesWrap');
+    if(!wrap) return;
+    wrap.innerHTML = composerImages.map((src, idx) => `<div class="thumb"><img src="${src}"><button class="remove" data-idx="${idx}" type="button" title="Remove">×</button></div>`).join('');
+    wrap.querySelectorAll('.remove').forEach(btn => { btn.addEventListener('click', () => { composerImages.splice(Number(btn.getAttribute('data-idx')), 1); renderComposerImages(); }); });
+  }
+  function renderModalImages(){
+    const wrap = $('#modalImagesWrap');
+    if(!wrap) return;
+    wrap.innerHTML = modalImages.map((src, idx) => `<div class="thumb"><img src="${src}"><button class="remove" data-idx="${idx}" type="button" title="Remove">×</button></div>`).join('');
+    wrap.querySelectorAll('.remove').forEach(btn => { btn.addEventListener('click', () => { modalImages.splice(Number(btn.getAttribute('data-idx')), 1); renderModalImages(); }); });
+  }
+  function addImageFile(file, targetArray, rerenderFn){
+    if(!file || !file.type || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1000;
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w > h){ h = Math.round(h * (maxDim / w)); w = maxDim; } else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        targetArray.push(canvas.toDataURL('image/jpeg', 0.82));
+        rerenderFn();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  function setupMentionAutocomplete(textarea, dropdownEl){
+    textarea.addEventListener('input', () => {
+      const val = textarea.value;
+      const pos = textarea.selectionStart;
+      const uptoCursor = val.slice(0, pos);
+      const match = /@([A-Za-z0-9\-]{0,6})$/.exec(uptoCursor);
+      if(!match){ dropdownEl.style.display = 'none'; return; }
+      const query = match[1].toLowerCase();
+      const candidates = state.threads.filter(t => {
+        const stamp = stampId(t.seq).toLowerCase();
+        return stamp.includes(query.replace(/^q-?/,'')) || stamp.includes(query) || (t.topic||'').toLowerCase().includes(query);
+      }).slice(0, 6);
+      if(candidates.length === 0){ dropdownEl.style.display = 'none'; return; }
+      dropdownEl.innerHTML = candidates.map(c => `<div class="mention-option" data-stamp="${stampId(c.seq)}">${stampId(c.seq)} — ${escapeHtml(c.topic || 'Untitled topic')}</div>`).join('');
+      dropdownEl.style.display = 'block';
+      dropdownEl.querySelectorAll('.mention-option').forEach(opt => {
+        opt.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          const stamp = opt.getAttribute('data-stamp');
+          const newVal = val.slice(0, match.index) + '@' + stamp + ' ' + val.slice(pos);
+          textarea.value = newVal;
+          const newPos = match.index + stamp.length + 2;
+          textarea.focus(); textarea.setSelectionRange(newPos, newPos);
+          dropdownEl.style.display = 'none';
+          textarea.dispatchEvent(new Event('input'));
+        });
+      });
+    });
+    textarea.addEventListener('blur', () => setTimeout(() => { dropdownEl.style.display = 'none'; }, 150));
+  }
+
+  function toCsvField(v){
+    const s = String(v == null ? '' : v);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+  function exportCsv(){
+    const rows = [['Thread ID','Topic','Related document','Status','Opened','Entry type','Entry date/time','Entry text','Edited','Images attached']];
+    state.threads.slice().sort((a,b)=>a.seq-b.seq).forEach(t => {
+      if(t.entries.length === 0){ rows.push([stampId(t.seq), t.topic, t.document, t.status, fmtDateTime(t.createdAt), '', '', '', '', '']); }
+      t.entries.forEach(e => {
+        rows.push([stampId(t.seq), t.topic, t.document, t.status, fmtDateTime(t.createdAt),
+          e.role === 'Q' ? 'Question' : 'Answer', fmtDateTime(e.date), e.text, e.edited ? 'Yes' : 'No', (e.images ? e.images.length : 0)]);
+      });
+    });
+    const csv = rows.map(r => r.map(toCsvField).join(',')).join('\n');
+    downloadBlob(csv, 'text/csv;charset=utf-8;', (state.label || 'qna-register').replace(/[^a-z0-9\-_]+/gi,'_') + '.csv');
+  }
+
+  // ---------- Resizable / collapsible layout ----------
+  const ICON_LEFT = '<svg viewBox="0 0 8 12" width="7" height="10"><path d="M7 1L2 6L7 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_RIGHT = '<svg viewBox="0 0 8 12" width="7" height="10"><path d="M1 1L6 6L1 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_UP = '<svg viewBox="0 0 12 8" width="10" height="7"><path d="M1 7L6 2L11 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_DOWN = '<svg viewBox="0 0 12 8" width="10" height="7"><path d="M1 1L6 6L11 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function updateDividerIcons(){
+    $('#collapseSidebarBtn').innerHTML = ui.sidebarCollapsed ? ICON_RIGHT : ICON_LEFT;
+    $('#collapseDetailBtn').innerHTML = ui.detailCollapsed ? ICON_LEFT : ICON_RIGHT;
+  }
+  function applyLayout(){
+    if(ui.sidebarCollapsed){ sidebarEl.classList.add('collapsed'); }
+    else { sidebarEl.classList.remove('collapsed'); sidebarEl.style.width = ui.sidebarWidth + 'px'; }
+    detailEl.classList.toggle('collapsed', !!ui.detailCollapsed);
+  }
+  function applyVSplit(){
+    const logEl = detailEl.querySelector('#logPanel');
+    const composerEl = detailEl.querySelector('#composerPanel');
+    if(!logEl || !composerEl) return;
+    if(ui.logCollapsed){
+      logEl.classList.add('collapsed');
+      composerEl.classList.remove('collapsed');
+      logEl.style.flex = '';
+      composerEl.style.flex = '1 1 0%';
+      composerEl.style.height = '';
+    } else if(ui.composerCollapsed){
+      composerEl.classList.add('collapsed');
+      logEl.classList.remove('collapsed');
+      logEl.style.flex = '';
+      composerEl.style.height = '';
+    } else {
+      logEl.classList.remove('collapsed');
+      composerEl.classList.remove('collapsed');
+      logEl.style.flex = '';
+      composerEl.style.flex = '0 0 auto';
+      composerEl.style.height = ui.composerHeight + 'px';
+    }
+  }
+  function updateVDividerIcons(){
+    const logBtn = detailEl.querySelector('#collapseLogBtn');
+    const compBtn = detailEl.querySelector('#collapseComposerBtn');
+    if(!logBtn || !compBtn) return;
+    logBtn.innerHTML = ui.logCollapsed ? ICON_DOWN : ICON_UP;
+    compBtn.innerHTML = ui.composerCollapsed ? ICON_UP : ICON_DOWN;
+  }
+  // Generic drag-to-resize helper: returns a `start` handler to bind to a divider's
+  // mousedown/touchstart. Handles pointer + touch move/end for a single axis.
+  function initDragAxis(cursorClass, canDrag, applyFromClient){
+    let active = false;
+    function moveTo(clientX, clientY){ if(active) applyFromClient(clientX, clientY); }
+    function end(){ if(active){ active = false; document.body.classList.remove(cursorClass); saveUiPrefs(); } }
+    function start(e){
+      if(e.target.closest('.divider-btn')) return;
+      if(canDrag && !canDrag()) return;
+      active = true; document.body.classList.add(cursorClass);
+      if(e.cancelable) e.preventDefault();
+    }
+    window.addEventListener('mousemove', (e) => moveTo(e.clientX, e.clientY));
+    window.addEventListener('touchmove', (e) => { const t = e.touches[0]; if(t) moveTo(t.clientX, t.clientY); }, { passive:true });
+    window.addEventListener('mouseup', end);
+    window.addEventListener('touchend', end);
+    return start;
+  }
+  // Generic collapse-toggle helper for a pair of mutually-exclusive panels.
+  function bindCollapseToggle(btn, key, otherKey, applyFn, iconFn){
+    if(!btn) return;
+    btn.addEventListener('click', () => {
+      ui[key] = !ui[key];
+      if(ui[key]) ui[otherKey] = false;
+      applyFn(); iconFn(); saveUiPrefs();
+    });
+  }
+
+  const startSidebarDrag = initDragAxis('resizing', () => !ui.sidebarCollapsed && !ui.detailCollapsed, (clientX) => {
+    const mainRect = $('.main').getBoundingClientRect();
+    ui.sidebarWidth = Math.max(220, Math.min(640, clientX - mainRect.left));
+    applyLayout();
+  });
+  const startComposerDrag = initDragAxis('resizing-row', () => !ui.logCollapsed && !ui.composerCollapsed, (_clientX, clientY) => {
+    const detailRect = detailEl.getBoundingClientRect();
+    ui.composerHeight = Math.max(120, Math.min(560, detailRect.bottom - clientY));
+    applyVSplit();
+  });
+
+  const divider = $('#divider');
+  divider.addEventListener('mousedown', startSidebarDrag);
+  divider.addEventListener('touchstart', startSidebarDrag, { passive:true });
+  bindCollapseToggle($('#collapseSidebarBtn'), 'sidebarCollapsed', 'detailCollapsed', applyLayout, updateDividerIcons);
+  bindCollapseToggle($('#collapseDetailBtn'), 'detailCollapsed', 'sidebarCollapsed', applyLayout, updateDividerIcons);
+
+  // ---------- Event wiring ----------
+  $('#searchInput').addEventListener('input', (e) => { filters.search = e.target.value; renderList(); });
+  $('#statusPills').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill');
+    if(!btn) return;
+    filters.status = btn.getAttribute('data-status');
+    document.querySelectorAll('#statusPills .pill').forEach(p => p.classList.toggle('active', p===btn));
+    renderList();
+  });
+  $('#topicFilter').addEventListener('change', (e) => { filters.topic = e.target.value; renderList(); });
+  $('#docFilter').addEventListener('change', (e) => { filters.doc = e.target.value; renderList(); });
+  $('#exportBtn').addEventListener('click', exportCsv);
+  $('#openFileBtn').addEventListener('click', openSharedFile);
+  $('#saveFileBtn').addEventListener('click', saveNow);
+  $('#legacyOpenInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        if(loadStateFromJsonText(reader.result)){ fileName = file.name; refreshStatusText(); }
+        else alert('This file doesn\'t look like a Q&A Register JSON file.');
+      };
+      reader.readAsText(file);
+    }
+    e.target.value = '';
+  });
+
+  const modalBackdrop = $('#modalBackdrop');
+  const modalQuestion = $('#mQuestion');
+  const modalPreview = $('#modalPreview');
+  const modalAttachBtn = $('#modalAttachBtn');
+  const modalAttachInput = $('#modalAttachInput');
+  setupMentionAutocomplete(modalQuestion, $('#modalMentionBox'));
+  modalQuestion.addEventListener('input', () => updateLivePreview(modalQuestion, modalPreview));
+  modalAttachBtn.addEventListener('click', () => modalAttachInput.click());
+  modalAttachInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => addImageFile(file, modalImages, renderModalImages));
+    modalAttachInput.value = '';
+  });
+  modalQuestion.addEventListener('paste', (e) => {
+    const items = Array.from(e.clipboardData ? e.clipboardData.items : []);
+    const imageItem = items.find(it => it.type && it.type.startsWith('image/'));
+    if(imageItem){ e.preventDefault(); const file = imageItem.getAsFile(); if(file) addImageFile(file, modalImages, renderModalImages); }
+  });
+
+  $('#newThreadBtn').addEventListener('click', () => {
+    $('#mTopic').value = ''; $('#mDoc').value = ''; modalQuestion.value = '';
+    modalImages = []; renderModalImages();
+    modalPreview.innerHTML = '<span class="empty-note">Nothing to preview yet.</span>';
+    modalBackdrop.classList.add('show');
+    setTimeout(()=> $('#mTopic').focus(), 30);
+  });
+  $('#modalCancel').addEventListener('click', () => modalBackdrop.classList.remove('show'));
+  modalBackdrop.addEventListener('click', (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove('show'); });
+  $('#lightbox').addEventListener('click', () => $('#lightbox').classList.remove('show'));
+
+  $('#modalCreate').addEventListener('click', () => {
+    const topic = $('#mTopic').value.trim();
+    const document_ = $('#mDoc').value.trim();
+    const question = modalQuestion.value.trim();
+    if(!question && modalImages.length === 0){ alert('Please write the question (or attach an image) before creating the entry.'); return; }
+    const seq = nextSeq();
+    const thread = {
+      id: 'th_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+      seq, topic: topic || 'Untitled topic', document: document_, status: 'Open',
+      createdAt: new Date().toISOString(),
+      entries: [{ role:'Q', text: question, date: new Date().toISOString(), images: modalImages.slice(), edited:false }]
+    };
+    state.threads.push(thread);
+    modalBackdrop.classList.remove('show');
+    persist();
+    populateFilterOptions();
+    selectThread(thread.id);
+    composerRole = 'A';
+    renderDetail();
+  });
+
+  // ---------- Init ----------
+  async function init(){
+    detailEl.innerHTML = `<div class="detail-empty">Loading…</div>`;
+    loadLocalCache();
+    loadUiPrefs();
+    applyLayout();
+    updateDividerIcons();
+    populateFilterOptions();
+    renderList();
+    renderDetail();
+    await tryReconnect();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
