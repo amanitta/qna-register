@@ -4,7 +4,8 @@
 
 This is a lightweight, self-contained tool for tracking Q&A exchanges with external parties (e.g. during a regulatory assessment). It runs entirely inside your web browser — there is no server, no installation, and no account to set up. All the questions, answers, and their history live in a single `json` file that should travel alongside the tool.
 
-> *Try it out [here](https://amanitta.github.io/qna-register/)*
+> **Try it out [here](https://amanitta.github.io/qna-register/)!**<br>
+_Tip: link the tool to the template.json you can find in the repo._
 
 Two files matter here:
 
