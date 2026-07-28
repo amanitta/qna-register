@@ -32,8 +32,8 @@ Two files matter here:
 
 Here we present the typical use-case for which this tool was first designed: a regulatory assessment process, where supervisory authorities need a structured way to raise questions to the company and track responses over several weeks or months.
 
-1. **Kick-off.** The authority's team creates the register (e.g. `assessment.json`), adds the first batch of questions grouped by topic the `.json` file with the company.
-2. **First response round.** The company links its copy copy of the `.html` to the shared `.json`. For each open thread, they add an **Answer** entry.
+1. **Kick-off.** The authorities' team creates the register (e.g. `assessment.json`), adds the first batch of questions grouped by topic and shares the `.json` file with the company.
+2. **First response round.** The company links its copy of the `.html` to the shared `.json`. For each open thread, they add an **Answer** entry.
 3. **Re-upload.** Once all answers for the round are drafted, the company re-uploads only the updated `.json` to the shared location, overwriting the previous version. The `.html` is never touched.
 4. **Follow-up questions.** The authority reviews the answers. For anything unclear or incomplete, they add a follow-up **Question** entry in the same thread (keeping the full history visible), or open a new thread for a new topic. Threads can reference each other (e.g. *"See @Q-003 for the related methodology"*) to avoid repeating answers.
 5. **Iteration.** This Q → A → follow-up-Q cycle repeats, with the `.json` file passing back and forth between the two parties, until every thread is marked as **Closed**.
