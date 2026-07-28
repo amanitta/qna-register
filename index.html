@@ -189,7 +189,7 @@
   <header>
     <div class="brand"><h1>Q&amp;A Register</h1></div>
     <div class="header-actions">
-      <button class="btn secondary" id="openFileBtn" title="Pick any register JSON file — this switches away from whatever is currently connected.">Open shared file…</button>
+      <button class="btn secondary" id="openFileBtn" title="Pick any register JSON file — this switches away from whatever is currently connected.">Link to JSON…</button>
       <button class="btn secondary" id="saveFileBtn">Save</button>
       <button class="btn secondary" id="exportBtn">Export CSV</button>
       <input type="file" id="legacyOpenInput" accept="application/json" style="display:none">
@@ -383,13 +383,13 @@
   function refreshStatusText(){
     fileStatusBar.classList.remove('status-error');
     if(fileHandle){
-      fileStatusEl.textContent = 'Connected to ' + fileName + (window.__lastSavedAt ? ' · saved ' + window.__lastSavedAt : ' · not saved yet') + ' — use "Open shared file…" to switch to a different register.';
+      fileStatusEl.textContent = 'Connected to ' + fileName + (window.__lastSavedAt ? ' · saved ' + window.__lastSavedAt : ' · not saved yet') + ' — use "Link to JSON…" to switch to a different register.';
     } else if(fsSupported){
-      fileStatusEl.textContent = 'Not connected to a file — working locally in this browser only. Use "Open shared file…" to open a downloaded copy of the register JSON, or "Save" to create one.';
+      fileStatusEl.textContent = 'Not connected to a file — working locally in this browser only. Use "Link to JSON…" to open a downloaded copy of the register JSON, or "Save" to create one.';
     } else {
       fileStatusEl.textContent = fileName
         ? ('Loaded ' + fileName + ' — this browser can\'t save back to it automatically. Click "Save" to download an updated copy, then re-upload it wherever the register is shared.')
-        : 'This browser can\'t connect directly to a file. Use "Open shared file…" to load the register JSON, and "Save" to download an updated copy to re-upload wherever the register is shared.';
+        : 'This browser can\'t connect directly to a file. Use "Link to JSON…" to load the register JSON, and "Save" to download an updated copy to re-upload wherever the register is shared.';
     }
   }
   function showFileError(msg){
@@ -430,7 +430,7 @@
       }catch(e){
         console.error('Auto-save to shared file failed', e);
         fileHandle = null;
-        showFileError('Lost connection to the shared file. Your latest changes are cached in this browser — click "Open shared file…" to reconnect, or "Save" to download a copy.');
+        showFileError('Lost connection to the shared file. Your latest changes are cached in this browser — click "Link to JSON…" to reconnect, or "Save" to download a copy.');
       }
     }
   }
