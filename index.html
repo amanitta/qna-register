@@ -11,7 +11,8 @@
   :root{
     --paper: #F6F5F1; --card: #FFFFFF; --ink: #1B2130; --ink-soft: #5B6272; --line: #DBD8CE;
     --teal: #24594A; --teal-bg: #E7EFEB; --rust: #9C5630; --rust-bg: #F3E7DE;
-    --steel: #2F5DA6; --steel-bg: #E6ECF5; --closed: #767C87; --closed-bg: #E9E9E7; --focus: #2F5DA6;
+    --steel: #2F5DA6; --steel-bg: #E6ECF5; --closed: #1E7B34; --closed-bg: #E3F3E6; --focus: #2F5DA6;
+    --status-open: #B3261E; --status-open-bg: #FBEAE8;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
@@ -40,19 +41,19 @@
   .file-status-bar .icon-btn{ font-size:12px; }
 
   .main{ flex:1; display:flex; min-height:0; position:relative; }
-  .sidebar{ flex:0 0 auto; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; overflow:hidden; }
-  .sidebar.collapsed{ flex:0 0 0px; border-right:none; }
-  .divider{ flex:0 0 10px; width:10px; cursor:col-resize; background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border-left:1px solid var(--line); border-right:1px solid var(--line); }
-  .divider:hover{ background:#EFEDE6; }
-  .divider-btn{ width:18px; height:18px; border-radius:3px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); padding:0; display:flex; align-items:center; justify-content:center; }
-  .divider-btn:hover{ border-color:var(--ink); color:var(--ink); }
-  .h-divider{
-    flex:0 0 10px; height:10px; cursor:row-resize; background:var(--paper); display:flex;
-    flex-direction:row; align-items:center; justify-content:center; gap:8px;
-    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
-  }
-  .h-divider:hover{ background:#EFEDE6; }
-  .log.collapsed{ display:none; }
+  .sidebar{ flex:0 0 auto; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; overflow:hidden; transition:width .22s cubic-bezier(.4,0,.2,1), border-color .22s ease; }
+  .sidebar.collapsed{ width:0 !important; border-right-color:transparent; }
+  .sidebar > *{ transition:opacity .15s ease; }
+  .sidebar.collapsed > *{ opacity:0; }
+  .divider{ flex:0 0 14px; width:14px; cursor:col-resize; background:transparent; display:flex; align-items:center; justify-content:center; position:relative; }
+  .divider::before{ content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:var(--line); transform:translateX(-50%); transition:background .15s ease; }
+  .divider:hover::before{ background:var(--ink-soft); }
+  .divider-btn{ position:relative; z-index:2; width:20px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); padding:0; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(27,33,48,0.10); transition:background .15s ease, border-color .15s ease, color .15s ease; }
+  .divider-btn:hover{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .h-divider{ flex:0 0 14px; height:14px; cursor:row-resize; background:transparent; display:flex; align-items:center; justify-content:center; position:relative; }
+  .h-divider::before{ content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--line); transform:translateY(-50%); transition:background .15s ease; }
+  .h-divider:hover::before{ background:var(--ink-soft); }
+  .divider-btn.h{ width:36px; height:20px; }
   .composer.collapsed{ display:none; }
 
   .filters{ padding:14px 16px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
@@ -72,7 +73,7 @@
   .stamp.link{ cursor:pointer; border-color:var(--steel); color:var(--steel); }
   .stamp.link:hover{ background:var(--steel-bg); }
   .status-badge{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; padding:2px 7px; border-radius:10px; white-space:nowrap; }
-  .status-open{ background:var(--teal-bg); color:var(--teal); }
+  .status-open{ background:var(--status-open-bg); color:var(--status-open); }
   .status-answered{ background:var(--steel-bg); color:var(--steel); }
   .status-closed{ background:var(--closed-bg); color:var(--closed); }
   .thread-topic{ font-weight:600; font-size:13.5px; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -81,14 +82,14 @@
   .empty-list{ padding:32px 20px; text-align:center; color:var(--ink-soft); font-size:13px; }
 
   .detail{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; }
-  .detail.collapsed{ display:none; }
   .detail-empty{ flex:1; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:14px; text-align:center; padding:40px; }
   .detail-header{ padding:20px 28px 16px; border-bottom:1px solid var(--line); }
   .detail-header-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:10px; }
   .detail-title-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1; min-width:0; }
   .detail-title-input{
     font-family:'Source Serif 4', serif; font-weight:700; font-size:18px; border:1px solid transparent;
-    background:transparent; padding:3px 6px; border-radius:3px; flex:1; min-width:120px; color:var(--ink);
+    background:transparent; padding:3px 6px; border-radius:3px; min-width:120px; max-width:440px; color:var(--ink);
+    field-sizing:content;
   }
   .detail-title-input:hover{ border-color:var(--line); }
   .detail-title-input:focus{ border-color:var(--ink); background:var(--card); }
@@ -96,6 +97,7 @@
   .field{ display:flex; flex-direction:column; gap:3px; }
   .field label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); font-weight:600; }
   .field input, .field select{ border:1px solid var(--line); border-radius:3px; padding:6px 8px; font-size:12.5px; background:var(--card); min-width:160px; }
+  #editDoc{ field-sizing:content; max-width:360px; }
   .icon-btn{ background:none; border:none; color:var(--ink-soft); font-size:12px; text-decoration:underline; padding:4px; }
   .icon-btn:hover{ color:var(--ink); }
 
@@ -111,8 +113,10 @@
   .entry.role-A .entry-role{ color:var(--teal); }
   .entry-date{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); }
   .edited-tag{ font-size:10.5px; color:var(--ink-soft); font-style:italic; }
-  .entry-edit-btn{ margin-left:auto; background:none; border:none; font-size:11px; color:var(--ink-soft); text-decoration:underline; padding:2px; }
-  .entry-edit-btn:hover{ color:var(--ink); }
+  .entry-actions{ margin-left:auto; display:flex; align-items:center; gap:2px; }
+  .entry-edit-btn, .entry-delete-btn{ background:none; border:none; color:var(--ink-soft); padding:4px; border-radius:3px; display:inline-flex; align-items:center; justify-content:center; }
+  .entry-edit-btn:hover{ color:var(--ink); background:rgba(0,0,0,0.05); }
+  .entry-delete-btn:hover{ color:var(--status-open); background:rgba(0,0,0,0.05); }
   .entry-text{ font-size:13.5px; line-height:1.55; word-break:break-word; }
   .entry-text p{ margin:0 0 8px; }
   .entry-text p:last-child{ margin-bottom:0; }
@@ -178,6 +182,7 @@
     .divider{ display:none; }
     .detail-fields{ gap:12px; }
     .field input, .field select{ min-width:130px; }
+    .detail-title-input, #editDoc{ max-width:100%; }
     .entry-card{ max-width:88%; }
   }
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
@@ -217,7 +222,6 @@
 
     <div class="divider" id="divider">
       <button class="divider-btn" id="collapseSidebarBtn" title="Collapse/expand list">⟨</button>
-      <button class="divider-btn" id="collapseDetailBtn" title="Collapse/expand details">⟩</button>
     </div>
 
     <section class="detail" id="detail"></section>
@@ -275,7 +279,7 @@
   const STATUSES = ['Open','Answered','Closed'];
 
   let state = { label: 'Assessment', threads: [] };
-  let ui = { sidebarWidth: 340, sidebarCollapsed: false, detailCollapsed: false, composerHeight: 220, logCollapsed: false, composerCollapsed: false };
+  let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerCollapsed: false };
   let selectedId = null;
   let filters = { status: 'all', topic: 'all', doc: 'all', search: '' };
   let composerRole = 'Q';
@@ -682,7 +686,10 @@
             <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
             <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             ${editedTag}
-            <button class="entry-edit-btn" data-edit-idx="${idx}" type="button">Edit</button>
+            <span class="entry-actions">
+              <button class="entry-edit-btn" data-edit-idx="${idx}" type="button" title="Edit entry">${ICON_EDIT}</button>
+              <button class="entry-delete-btn" data-delete-idx="${idx}" type="button" title="Delete entry">${ICON_TRASH}</button>
+            </span>
           </div>
           <div class="entry-text" data-entry-idx="${idx}">${renderContent(e.text)}</div>
           ${imagesHtml}
@@ -710,8 +717,7 @@
       </div>
       <div class="log" id="logPanel">${entriesHtml || '<div class="empty-list">No entries yet. Add the first message below.</div>'}</div>
       <div class="h-divider" id="hDivider">
-        <button class="divider-btn" id="collapseLogBtn" title="Collapse/expand messages">▲</button>
-        <button class="divider-btn" id="collapseComposerBtn" title="Collapse/expand message box">▼</button>
+        <button class="divider-btn h" id="collapseComposerBtn" title="Collapse/expand message box">▼</button>
       </div>
       <div class="composer" id="composerPanel">
         <div class="composer-toggle">
@@ -758,6 +764,16 @@
     });
     detailEl.querySelectorAll('.entry-edit-btn').forEach(btn => {
       btn.addEventListener('click', () => { editingEntryIdx = Number(btn.getAttribute('data-edit-idx')); renderDetail(); });
+    });
+    detailEl.querySelectorAll('.entry-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.getAttribute('data-delete-idx'));
+        if(confirm('Delete this entry? This cannot be undone.')){
+          t.entries.splice(idx, 1);
+          if(editingEntryIdx === idx) editingEntryIdx = null;
+          persist(); renderList(); renderDetail();
+        }
+      });
     });
     const cancelEditBtn = $('#cancelEditEntry');
     if(cancelEditBtn) cancelEditBtn.addEventListener('click', () => { editingEntryIdx = null; renderDetail(); });
@@ -810,8 +826,7 @@
       hDivider.addEventListener('mousedown', startComposerDrag);
       hDivider.addEventListener('touchstart', startComposerDrag, { passive:true });
     }
-    bindCollapseToggle(detailEl.querySelector('#collapseLogBtn'), 'logCollapsed', 'composerCollapsed', applyVSplit, updateVDividerIcons);
-    bindCollapseToggle(detailEl.querySelector('#collapseComposerBtn'), 'composerCollapsed', 'logCollapsed', applyVSplit, updateVDividerIcons);
+    bindCollapseToggle(detailEl.querySelector('#collapseComposerBtn'), 'composerCollapsed', null, applyVSplit, updateVDividerIcons);
     applyVSplit();
     updateVDividerIcons();
 
@@ -906,43 +921,30 @@
   const ICON_RIGHT = '<svg viewBox="0 0 8 12" width="7" height="10"><path d="M1 1L6 6L1 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_UP = '<svg viewBox="0 0 12 8" width="10" height="7"><path d="M1 7L6 2L11 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_DOWN = '<svg viewBox="0 0 12 8" width="10" height="7"><path d="M1 1L6 6L11 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_TRASH = '<svg viewBox="0 0 16 16" width="13" height="13"><path d="M3 4h10M6.5 4V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V4M4.5 4l.5 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_EDIT = '<svg viewBox="0 0 16 16" width="13" height="13"><path d="M11.5 2.5a1.5 1.5 0 0 1 2.12 2.12L6 12.25l-3.25 1 1-3.25 7.75-7.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function updateDividerIcons(){
     $('#collapseSidebarBtn').innerHTML = ui.sidebarCollapsed ? ICON_RIGHT : ICON_LEFT;
-    $('#collapseDetailBtn').innerHTML = ui.detailCollapsed ? ICON_LEFT : ICON_RIGHT;
   }
   function applyLayout(){
     if(ui.sidebarCollapsed){ sidebarEl.classList.add('collapsed'); }
     else { sidebarEl.classList.remove('collapsed'); sidebarEl.style.width = ui.sidebarWidth + 'px'; }
-    detailEl.classList.toggle('collapsed', !!ui.detailCollapsed);
   }
   function applyVSplit(){
-    const logEl = detailEl.querySelector('#logPanel');
     const composerEl = detailEl.querySelector('#composerPanel');
-    if(!logEl || !composerEl) return;
-    if(ui.logCollapsed){
-      logEl.classList.add('collapsed');
-      composerEl.classList.remove('collapsed');
-      logEl.style.flex = '';
-      composerEl.style.flex = '1 1 0%';
-      composerEl.style.height = '';
-    } else if(ui.composerCollapsed){
+    if(!composerEl) return;
+    if(ui.composerCollapsed){
       composerEl.classList.add('collapsed');
-      logEl.classList.remove('collapsed');
-      logEl.style.flex = '';
       composerEl.style.height = '';
     } else {
-      logEl.classList.remove('collapsed');
       composerEl.classList.remove('collapsed');
-      logEl.style.flex = '';
       composerEl.style.flex = '0 0 auto';
       composerEl.style.height = ui.composerHeight + 'px';
     }
   }
   function updateVDividerIcons(){
-    const logBtn = detailEl.querySelector('#collapseLogBtn');
     const compBtn = detailEl.querySelector('#collapseComposerBtn');
-    if(!logBtn || !compBtn) return;
-    logBtn.innerHTML = ui.logCollapsed ? ICON_DOWN : ICON_UP;
+    if(!compBtn) return;
     compBtn.innerHTML = ui.composerCollapsed ? ICON_UP : ICON_DOWN;
   }
   // Generic drag-to-resize helper: returns a `start` handler to bind to a divider's
@@ -968,17 +970,17 @@
     if(!btn) return;
     btn.addEventListener('click', () => {
       ui[key] = !ui[key];
-      if(ui[key]) ui[otherKey] = false;
+      if(ui[key] && otherKey) ui[otherKey] = false;
       applyFn(); iconFn(); saveUiPrefs();
     });
   }
 
-  const startSidebarDrag = initDragAxis('resizing', () => !ui.sidebarCollapsed && !ui.detailCollapsed, (clientX) => {
+  const startSidebarDrag = initDragAxis('resizing', () => !ui.sidebarCollapsed, (clientX) => {
     const mainRect = $('.main').getBoundingClientRect();
     ui.sidebarWidth = Math.max(220, Math.min(640, clientX - mainRect.left));
     applyLayout();
   });
-  const startComposerDrag = initDragAxis('resizing-row', () => !ui.logCollapsed && !ui.composerCollapsed, (_clientX, clientY) => {
+  const startComposerDrag = initDragAxis('resizing-row', () => !ui.composerCollapsed, (_clientX, clientY) => {
     const detailRect = detailEl.getBoundingClientRect();
     ui.composerHeight = Math.max(120, Math.min(560, detailRect.bottom - clientY));
     applyVSplit();
@@ -987,8 +989,7 @@
   const divider = $('#divider');
   divider.addEventListener('mousedown', startSidebarDrag);
   divider.addEventListener('touchstart', startSidebarDrag, { passive:true });
-  bindCollapseToggle($('#collapseSidebarBtn'), 'sidebarCollapsed', 'detailCollapsed', applyLayout, updateDividerIcons);
-  bindCollapseToggle($('#collapseDetailBtn'), 'detailCollapsed', 'sidebarCollapsed', applyLayout, updateDividerIcons);
+  bindCollapseToggle($('#collapseSidebarBtn'), 'sidebarCollapsed', null, applyLayout, updateDividerIcons);
 
   // ---------- Event wiring ----------
   $('#searchInput').addEventListener('input', (e) => { filters.search = e.target.value; renderList(); });
