@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q&A Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<!-- BUILD:STYLE -->
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand"><h1>Q&amp;A Register</h1></div>
+    <div class="header-actions">
+      <button class="btn secondary" id="openFileBtn" title="Pick any register JSON file — this switches away from whatever is currently connected.">Link to JSON…</button>
+      <button class="btn secondary" id="saveFileBtn">Save</button>
+      <button class="btn secondary" id="exportBtn">Export CSV</button>
+      <input type="file" id="legacyOpenInput" accept="application/json" style="display:none">
+      <button class="btn" id="newThreadBtn">+ New question</button>
+    </div>
+  </header>
+
+  <div class="file-status-bar" id="fileStatusBar"><span id="fileStatus"></span></div>
+
+  <div class="main">
+    <aside class="sidebar" id="sidebarPanel">
+      <div class="filters">
+        <input type="search" id="searchInput" placeholder="Search questions and answers…">
+        <div class="pill-row" id="statusPills">
+          <button class="pill active" data-status="all">All</button>
+          <button class="pill" data-status="Open">Open</button>
+          <button class="pill" data-status="Answered">Answered</button>
+          <button class="pill" data-status="Closed">Closed</button>
+        </div>
+        <select class="filter-select" id="topicFilter"><option value="all">All topics</option></select>
+        <select class="filter-select" id="docFilter"><option value="all">All related documents</option></select>
+      </div>
+      <div class="thread-list" id="threadList"></div>
+    </aside>
+
+    <div class="divider" id="divider">
+      <button class="divider-btn" id="collapseSidebarBtn" title="Collapse/expand list">⟨</button>
+    </div>
+
+    <section class="detail" id="detail"></section>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2>New question</h2>
+    <div class="field">
+      <label for="mTopic">Topic</label>
+      <input id="mTopic" type="text" list="topicOptions" placeholder="e.g. Margin methodology">
+      <datalist id="topicOptions"></datalist>
+    </div>
+    <div class="field">
+      <label for="mDoc">Related document</label>
+      <input id="mDoc" type="text" list="docOptions" placeholder="e.g. Risk Policy v3.2">
+      <datalist id="docOptions"></datalist>
+    </div>
+    <div class="field">
+      <label for="mQuestion">Question</label>
+      <div class="modal-toolbar">
+        <button class="btn secondary small" id="modalAttachBtn" type="button">+ Image</button>
+        <span class="paste-hint">Markdown &amp; $LaTeX$ supported. Paste an image, or attach one. Use @Q-001 to reference.</span>
+      </div>
+      <input type="file" id="modalAttachInput" accept="image/*" multiple style="display:none">
+      <div class="modal-images" id="modalImagesWrap"></div>
+      <div class="textarea-wrap">
+        <textarea id="mQuestion" placeholder="Write the question to the CCP…"></textarea>
+        <div class="mention-autocomplete" id="modalMentionBox"></div>
+      </div>
+      <div class="preview-label">Preview</div>
+      <div class="live-preview entry-text" id="modalPreview"><span class="empty-note">Nothing to preview yet.</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Cancel</button>
+      <button class="btn" id="modalCreate">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <img id="lightboxImg" src="" alt="attachment preview">
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<!-- BUILD:SCRIPT -->
+</body>
+</html>
