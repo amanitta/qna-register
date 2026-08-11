@@ -1,0 +1,8 @@
+{
+  "name": "qna-register",
+  "private": true,
+  "description": "Build script for the Q&A Register single-file tool.",
+  "scripts": {
+    "build": "node build.js"
+  }
+}

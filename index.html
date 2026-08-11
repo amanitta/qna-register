@@ -1,3 +1,4 @@
+<!-- AUTO-GENERATED FILE — do not edit directly. Source lives under /src; run `node build.js` (or push — CI rebuilds this file). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -272,6 +273,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script>
 (function(){
+  // ---------- Shared state, DOM refs, formatting helpers ----------
   const STORAGE_KEY = 'qna-register-data-v2';
   const UI_KEY = 'qna-register-ui-v2';
   const IDB_NAME = 'qna-register-fs';
@@ -652,6 +654,7 @@
     linkifyMentions(previewEl, false);
   }
 
+  // ---------- Thread detail: header, log, composer ----------
   function renderDetail(){
     const t = state.threads.find(x => x.id === selectedId);
     if(!t){
@@ -834,6 +837,7 @@
     if(logEl) logEl.scrollTop = logEl.scrollHeight;
   }
 
+  // ---------- Composer/modal widgets: image attachments + @mention autocomplete ----------
   function renderComposerImages(){
     const wrap = $('#composerImagesWrap');
     if(!wrap) return;
@@ -898,6 +902,7 @@
     textarea.addEventListener('blur', () => setTimeout(() => { dropdownEl.style.display = 'none'; }, 150));
   }
 
+  // ---------- CSV export ----------
   function toCsvField(v){
     const s = String(v == null ? '' : v);
     if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';

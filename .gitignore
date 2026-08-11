@@ -1,5 +1,7 @@
-# ignore all JSON/CSV files except templates
+# ignore all JSON/CSV files except templates and build tooling config
 *.json
 !template.json
+!package.json
+!package-lock.json
 *.csv
 !template.csv

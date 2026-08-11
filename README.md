@@ -11,6 +11,13 @@ Two files matter here:
 - `.html` — the tool itself. This never needs to change.
 - `.json` — the actual register: every question, answer, status, and edit. This is the file that gets updated.
 
+## Development
+
+`index.html` is a generated file — don't edit it directly, your changes will be overwritten. The source lives under [`src/`](./src) (`index.html` shell, `styles.css`, and `js/` split by concern) and is assembled by [`build.js`](./build.js), a small dependency-free Node script.
+
+- Local build: `node build.js` (or `npm run build`) regenerates `index.html` from `src/`.
+- CI build: a [GitHub Actions workflow](./.github/workflows/build.yml) runs the same build on every push that touches `src/**` or `build.js`, and commits the regenerated `index.html` back to the branch automatically.
+
 ## How to use it
 
 ### 1. First time: getting set up
