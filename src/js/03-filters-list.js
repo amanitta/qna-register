@@ -10,7 +10,9 @@
     topicSel.innerHTML = '<option value="all">All topics</option>' + uniqueValues('topic').map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
     docSel.innerHTML = '<option value="all">All related documents</option>' + uniqueValues('document').map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
     if(Array.from(topicSel.options).some(o=>o.value===curTopic)) topicSel.value = curTopic;
+    else { topicSel.value = 'all'; filters.topic = 'all'; }
     if(Array.from(docSel.options).some(o=>o.value===curDoc)) docSel.value = curDoc;
+    else { docSel.value = 'all'; filters.doc = 'all'; }
     $('#topicOptions').innerHTML = uniqueValues('topic').map(t => `<option value="${escapeHtml(t)}">`).join('');
     $('#docOptions').innerHTML = uniqueValues('document').map(d => `<option value="${escapeHtml(d)}">`).join('');
   }
@@ -21,7 +23,7 @@
       if(filters.doc !== 'all' && t.document !== filters.doc) return false;
       if(filters.search){
         const q = filters.search.toLowerCase();
-        const hay = [t.topic, t.document, ...t.entries.map(e=>e.text)].join(' ').toLowerCase();
+        const hay = [t.topic, t.document, stampId(t.seq), String(t.seq), ...t.entries.map(e=>e.text)].join(' ').toLowerCase();
         if(!hay.includes(q)) return false;
       }
       return true;

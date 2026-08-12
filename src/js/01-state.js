@@ -5,7 +5,7 @@
   const IDB_STORE = 'handles';
   const STATUSES = ['Open','Answered','Closed'];
 
-  let state = { label: 'Assessment', threads: [] };
+  let state = { label: 'Assessment', roleLabels: { Q: 'Authorities', A: 'CCP' }, threads: [] };
   let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerCollapsed: false };
   let selectedId = null;
   let filters = { status: 'all', topic: 'all', doc: 'all', search: '' };
@@ -13,6 +13,7 @@
   let composerImages = [];
   let modalImages = [];
   let editingEntryIdx = null;
+  let pendingDeleteId = null;
 
   let fileHandle = null;
   let fileName = null;
@@ -43,6 +44,11 @@
     if(s === 'Follow-up needed') return 'Open';
     if(STATUSES.includes(s)) return s;
     return 'Open';
+  }
+  function migrateRoleLabels(s){
+    if(!s.roleLabels || typeof s.roleLabels !== 'object') s.roleLabels = {};
+    if(typeof s.roleLabels.Q !== 'string' || !s.roleLabels.Q.trim()) s.roleLabels.Q = 'Authorities';
+    if(typeof s.roleLabels.A !== 'string' || !s.roleLabels.A.trim()) s.roleLabels.A = 'CCP';
   }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));

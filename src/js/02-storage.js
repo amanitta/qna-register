@@ -45,6 +45,7 @@
             t.status = migrateStatus(t.status);
             (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
           });
+          migrateRoleLabels(parsed);
           parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
           state = parsed;
         }
@@ -86,6 +87,7 @@
         t.status = migrateStatus(t.status);
         (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
       });
+      migrateRoleLabels(parsed);
       parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
       state = parsed;
       cacheLocally();

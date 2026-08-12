@@ -75,3 +75,35 @@
     composerRole = 'A';
     renderDetail();
   });
+
+  const deleteModalBackdrop = $('#deleteModalBackdrop');
+  $('#deleteModalCancel').addEventListener('click', () => { deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; });
+  deleteModalBackdrop.addEventListener('click', (e) => { if(e.target === deleteModalBackdrop){ deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; } });
+  $('#deleteModalKeep').addEventListener('click', () => {
+    if(pendingDeleteId) deleteThread(pendingDeleteId, false);
+    pendingDeleteId = null;
+    deleteModalBackdrop.classList.remove('show');
+  });
+  $('#deleteModalRenumber').addEventListener('click', () => {
+    if(pendingDeleteId) deleteThread(pendingDeleteId, true);
+    pendingDeleteId = null;
+    deleteModalBackdrop.classList.remove('show');
+  });
+
+  const roleLabelsModalBackdrop = $('#roleLabelsModalBackdrop');
+  $('#roleLabelsBtn').addEventListener('click', () => {
+    $('#roleLabelQ').value = state.roleLabels.Q;
+    $('#roleLabelA').value = state.roleLabels.A;
+    roleLabelsModalBackdrop.classList.add('show');
+  });
+  $('#roleLabelsCancel').addEventListener('click', () => roleLabelsModalBackdrop.classList.remove('show'));
+  roleLabelsModalBackdrop.addEventListener('click', (e) => { if(e.target === roleLabelsModalBackdrop) roleLabelsModalBackdrop.classList.remove('show'); });
+  $('#roleLabelsSave').addEventListener('click', () => {
+    state.roleLabels = {
+      Q: $('#roleLabelQ').value.trim() || 'Authorities',
+      A: $('#roleLabelA').value.trim() || 'CCP',
+    };
+    persist();
+    renderDetail();
+    roleLabelsModalBackdrop.classList.remove('show');
+  });
