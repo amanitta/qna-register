@@ -11,7 +11,7 @@
         <div class="entry role-${e.role}">
           <div class="entry-card" style="max-width:90%;">
             <div class="entry-head">
-              <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
+              <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'} [${escapeHtml(state.roleLabels[e.role])}]</span>
               <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             </div>
             <div class="edit-entry-box">
@@ -25,12 +25,12 @@
         </div>`;
       }
       const imagesHtml = (e.images && e.images.length) ? `<div class="entry-images">${e.images.map(src => `<img src="${src}" data-src="${src}">`).join('')}</div>` : '';
-      const editedTag = e.edited ? `<span class="edited-tag" title="Edited ${fmtDateTime(e.editedAt)}">(edited)</span>` : '';
+      const editedTag = e.edited ? `<span class="edited-tag">(edited ${fmtDateTime(e.editedAt)})</span>` : '';
       return `
       <div class="entry role-${e.role}">
         <div class="entry-card">
           <div class="entry-head">
-            <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
+            <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'} [${escapeHtml(state.roleLabels[e.role])}]</span>
             <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             ${editedTag}
             <span class="entry-actions">
@@ -49,7 +49,7 @@
         <div class="detail-header-top">
           <div class="detail-title-row">
             <span class="stamp">${stampId(t.seq)}</span>
-            <input class="detail-title-input" id="editTitleTop" value="${escapeHtml(t.topic)}" title="Click to edit the question's title" placeholder="Untitled topic">
+            <textarea class="detail-title-input" id="editTitleTop" title="Click to edit the question's title" placeholder="Untitled topic" rows="1">${escapeHtml(t.topic)}</textarea>
           </div>
           <button class="icon-btn" id="deleteThreadBtn">Delete</button>
         </div>
@@ -68,8 +68,8 @@
       </div>
       <div class="composer" id="composerPanel">
         <div class="composer-toggle">
-          <button class="role-toggle ${composerRole==='Q'?'active-Q':''}" data-role="Q">Question</button>
-          <button class="role-toggle ${composerRole==='A'?'active-A':''}" data-role="A">Answer</button>
+          <button class="role-toggle ${composerRole==='Q'?'active-Q':''}" data-role="Q">Question [${escapeHtml(state.roleLabels.Q)}]</button>
+          <button class="role-toggle ${composerRole==='A'?'active-A':''}" data-role="A">Answer [${escapeHtml(state.roleLabels.A)}]</button>
           <button class="btn secondary small" id="attachImgBtn" type="button">+ Image</button>
         </div>
         <input type="file" id="attachImgInput" accept="image/*" multiple style="display:none">
@@ -92,16 +92,18 @@
     });
 
     $('#editTitleTop').addEventListener('change', (e) => {
-      t.topic = e.target.value.trim();
+      t.topic = e.target.value.replace(/\s+/g, ' ').trim();
       persist(); populateFilterOptions(); renderList();
+    });
+    $('#editTitleTop').addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); e.target.blur(); }
     });
     $('#editDoc').addEventListener('change', (e) => { t.document = e.target.value.trim(); persist(); populateFilterOptions(); renderList(); });
     $('#editStatus').addEventListener('change', (e) => { t.status = e.target.value; persist(); renderList(); });
     $('#deleteThreadBtn').addEventListener('click', () => {
-      if(confirm('Delete this question and its full history? This cannot be undone.')){
-        state.threads = state.threads.filter(x => x.id !== t.id);
-        selectedId = null; persist(); populateFilterOptions(); renderList(); renderDetail();
-      }
+      pendingDeleteId = t.id;
+      $('#deleteModalStamp').textContent = stampId(t.seq);
+      $('#deleteModalBackdrop').classList.add('show');
     });
     detailEl.querySelectorAll('.role-toggle').forEach(btn => {
       btn.addEventListener('click', () => { composerRole = btn.getAttribute('data-role'); renderDetail(); });
@@ -179,4 +181,27 @@
 
     const logEl = detailEl.querySelector('#logPanel');
     if(logEl) logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function rewriteMentions(text, seqMap){
+    return text.replace(/@(Q-)(\d{1,4})\b/gi, (m, prefix, num) => {
+      const oldSeq = parseInt(num, 10);
+      return seqMap.has(oldSeq) ? ('@' + stampId(seqMap.get(oldSeq))) : m;
+    });
+  }
+  function deleteThread(id, renumber){
+    state.threads = state.threads.filter(x => x.id !== id);
+    if(renumber){
+      state.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
+      const seqMap = new Map();
+      state.threads.forEach((th, i) => {
+        const newSeq = i + 1;
+        if(th.seq !== newSeq){ seqMap.set(th.seq, newSeq); th.seq = newSeq; }
+      });
+      if(seqMap.size){
+        state.threads.forEach(th => { th.entries.forEach(e => { if(e.text) e.text = rewriteMentions(e.text, seqMap); }); });
+      }
+    }
+    if(selectedId === id) selectedId = null;
+    persist(); populateFilterOptions(); renderList(); renderDetail();
   }

@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Q&A Register</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2324594A'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='700' text-anchor='middle' fill='%23F6F5F1'%3EQ%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
@@ -89,8 +90,8 @@
   .detail-title-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1; min-width:0; }
   .detail-title-input{
     font-family:'Source Serif 4', serif; font-weight:700; font-size:18px; border:1px solid transparent;
-    background:transparent; padding:3px 6px; border-radius:3px; min-width:120px; max-width:440px; color:var(--ink);
-    field-sizing:content;
+    background:transparent; padding:3px 6px; border-radius:3px; min-width:120px; max-width:100%; color:var(--ink);
+    field-sizing:content; resize:none; line-height:1.35; overflow-y:auto; max-height:calc(1.35em * 3 + 12px);
   }
   .detail-title-input:hover{ border-color:var(--line); }
   .detail-title-input:focus{ border-color:var(--ink); background:var(--card); }
@@ -134,7 +135,7 @@
   .mention:hover{ text-decoration:underline; }
   .entry-images{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
   .entry-images img{ max-width:160px; max-height:160px; border-radius:4px; border:1px solid var(--line); cursor:pointer; display:block; }
-  .edit-entry-box textarea{ width:100%; min-height:70px; border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:13.5px; font-family:inherit; margin-bottom:8px; }
+  .edit-entry-box textarea{ width:100%; min-height:110px; resize:vertical; border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:13.5px; font-family:inherit; margin-bottom:8px; field-sizing:content; }
   .edit-entry-actions{ display:flex; gap:8px; justify-content:flex-end; }
 
   .composer{ border-top:1px solid var(--line); padding:16px 28px 20px; overflow-y:auto; }
@@ -198,6 +199,7 @@
       <button class="btn secondary" id="openFileBtn" title="Pick any register JSON file — this switches away from whatever is currently connected.">Link to JSON…</button>
       <button class="btn secondary" id="saveFileBtn">Save</button>
       <button class="btn secondary" id="exportBtn">Export CSV</button>
+      <button class="btn secondary" id="roleLabelsBtn" title="Configure what the Question/Answer roles are called">Role labels…</button>
       <input type="file" id="legacyOpenInput" accept="application/json" style="display:none">
       <button class="btn" id="newThreadBtn">+ New question</button>
     </div>
@@ -264,6 +266,30 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="deleteModalBackdrop">
+  <div class="modal" style="max-width:440px;">
+    <h2>Delete <span id="deleteModalStamp"></span>?</h2>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 18px;">This removes the question and its full history. This cannot be undone. Keep the existing Q-numbers, or close the gap by renumbering the remaining questions (any @Q-XXX references are rewritten automatically).</p>
+    <div class="modal-actions">
+      <button class="btn secondary" id="deleteModalCancel">Cancel</button>
+      <button class="btn secondary" id="deleteModalKeep">Delete, keep numbering</button>
+      <button class="btn" id="deleteModalRenumber">Delete and renumber</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="roleLabelsModalBackdrop">
+  <div class="modal" style="max-width:400px;">
+    <h2>Role labels</h2>
+    <div class="field"><label for="roleLabelQ">Question-role label</label><input id="roleLabelQ" type="text" placeholder="e.g. Authorities"></div>
+    <div class="field"><label for="roleLabelA">Answer-role label</label><input id="roleLabelA" type="text" placeholder="e.g. CCP"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="roleLabelsCancel">Cancel</button>
+      <button class="btn" id="roleLabelsSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox">
   <img id="lightboxImg" src="" alt="attachment preview">
 </div>
@@ -280,7 +306,7 @@
   const IDB_STORE = 'handles';
   const STATUSES = ['Open','Answered','Closed'];
 
-  let state = { label: 'Assessment', threads: [] };
+  let state = { label: 'Assessment', roleLabels: { Q: 'Authorities', A: 'CCP' }, threads: [] };
   let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerCollapsed: false };
   let selectedId = null;
   let filters = { status: 'all', topic: 'all', doc: 'all', search: '' };
@@ -288,6 +314,7 @@
   let composerImages = [];
   let modalImages = [];
   let editingEntryIdx = null;
+  let pendingDeleteId = null;
 
   let fileHandle = null;
   let fileName = null;
@@ -318,6 +345,11 @@
     if(s === 'Follow-up needed') return 'Open';
     if(STATUSES.includes(s)) return s;
     return 'Open';
+  }
+  function migrateRoleLabels(s){
+    if(!s.roleLabels || typeof s.roleLabels !== 'object') s.roleLabels = {};
+    if(typeof s.roleLabels.Q !== 'string' || !s.roleLabels.Q.trim()) s.roleLabels.Q = 'Authorities';
+    if(typeof s.roleLabels.A !== 'string' || !s.roleLabels.A.trim()) s.roleLabels.A = 'CCP';
   }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
@@ -370,6 +402,7 @@
             t.status = migrateStatus(t.status);
             (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
           });
+          migrateRoleLabels(parsed);
           parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
           state = parsed;
         }
@@ -411,6 +444,7 @@
         t.status = migrateStatus(t.status);
         (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
       });
+      migrateRoleLabels(parsed);
       parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
       state = parsed;
       cacheLocally();
@@ -536,7 +570,9 @@
     topicSel.innerHTML = '<option value="all">All topics</option>' + uniqueValues('topic').map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
     docSel.innerHTML = '<option value="all">All related documents</option>' + uniqueValues('document').map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
     if(Array.from(topicSel.options).some(o=>o.value===curTopic)) topicSel.value = curTopic;
+    else { topicSel.value = 'all'; filters.topic = 'all'; }
     if(Array.from(docSel.options).some(o=>o.value===curDoc)) docSel.value = curDoc;
+    else { docSel.value = 'all'; filters.doc = 'all'; }
     $('#topicOptions').innerHTML = uniqueValues('topic').map(t => `<option value="${escapeHtml(t)}">`).join('');
     $('#docOptions').innerHTML = uniqueValues('document').map(d => `<option value="${escapeHtml(d)}">`).join('');
   }
@@ -547,7 +583,7 @@
       if(filters.doc !== 'all' && t.document !== filters.doc) return false;
       if(filters.search){
         const q = filters.search.toLowerCase();
-        const hay = [t.topic, t.document, ...t.entries.map(e=>e.text)].join(' ').toLowerCase();
+        const hay = [t.topic, t.document, stampId(t.seq), String(t.seq), ...t.entries.map(e=>e.text)].join(' ').toLowerCase();
         if(!hay.includes(q)) return false;
       }
       return true;
@@ -667,7 +703,7 @@
         <div class="entry role-${e.role}">
           <div class="entry-card" style="max-width:90%;">
             <div class="entry-head">
-              <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
+              <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'} [${escapeHtml(state.roleLabels[e.role])}]</span>
               <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             </div>
             <div class="edit-entry-box">
@@ -681,12 +717,12 @@
         </div>`;
       }
       const imagesHtml = (e.images && e.images.length) ? `<div class="entry-images">${e.images.map(src => `<img src="${src}" data-src="${src}">`).join('')}</div>` : '';
-      const editedTag = e.edited ? `<span class="edited-tag" title="Edited ${fmtDateTime(e.editedAt)}">(edited)</span>` : '';
+      const editedTag = e.edited ? `<span class="edited-tag">(edited ${fmtDateTime(e.editedAt)})</span>` : '';
       return `
       <div class="entry role-${e.role}">
         <div class="entry-card">
           <div class="entry-head">
-            <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'}</span>
+            <span class="entry-role">${e.role === 'Q' ? 'Question' : 'Answer'} [${escapeHtml(state.roleLabels[e.role])}]</span>
             <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             ${editedTag}
             <span class="entry-actions">
@@ -705,7 +741,7 @@
         <div class="detail-header-top">
           <div class="detail-title-row">
             <span class="stamp">${stampId(t.seq)}</span>
-            <input class="detail-title-input" id="editTitleTop" value="${escapeHtml(t.topic)}" title="Click to edit the question's title" placeholder="Untitled topic">
+            <textarea class="detail-title-input" id="editTitleTop" title="Click to edit the question's title" placeholder="Untitled topic" rows="1">${escapeHtml(t.topic)}</textarea>
           </div>
           <button class="icon-btn" id="deleteThreadBtn">Delete</button>
         </div>
@@ -724,8 +760,8 @@
       </div>
       <div class="composer" id="composerPanel">
         <div class="composer-toggle">
-          <button class="role-toggle ${composerRole==='Q'?'active-Q':''}" data-role="Q">Question</button>
-          <button class="role-toggle ${composerRole==='A'?'active-A':''}" data-role="A">Answer</button>
+          <button class="role-toggle ${composerRole==='Q'?'active-Q':''}" data-role="Q">Question [${escapeHtml(state.roleLabels.Q)}]</button>
+          <button class="role-toggle ${composerRole==='A'?'active-A':''}" data-role="A">Answer [${escapeHtml(state.roleLabels.A)}]</button>
           <button class="btn secondary small" id="attachImgBtn" type="button">+ Image</button>
         </div>
         <input type="file" id="attachImgInput" accept="image/*" multiple style="display:none">
@@ -748,16 +784,18 @@
     });
 
     $('#editTitleTop').addEventListener('change', (e) => {
-      t.topic = e.target.value.trim();
+      t.topic = e.target.value.replace(/\s+/g, ' ').trim();
       persist(); populateFilterOptions(); renderList();
+    });
+    $('#editTitleTop').addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){ e.preventDefault(); e.target.blur(); }
     });
     $('#editDoc').addEventListener('change', (e) => { t.document = e.target.value.trim(); persist(); populateFilterOptions(); renderList(); });
     $('#editStatus').addEventListener('change', (e) => { t.status = e.target.value; persist(); renderList(); });
     $('#deleteThreadBtn').addEventListener('click', () => {
-      if(confirm('Delete this question and its full history? This cannot be undone.')){
-        state.threads = state.threads.filter(x => x.id !== t.id);
-        selectedId = null; persist(); populateFilterOptions(); renderList(); renderDetail();
-      }
+      pendingDeleteId = t.id;
+      $('#deleteModalStamp').textContent = stampId(t.seq);
+      $('#deleteModalBackdrop').classList.add('show');
     });
     detailEl.querySelectorAll('.role-toggle').forEach(btn => {
       btn.addEventListener('click', () => { composerRole = btn.getAttribute('data-role'); renderDetail(); });
@@ -837,6 +875,29 @@
     if(logEl) logEl.scrollTop = logEl.scrollHeight;
   }
 
+  function rewriteMentions(text, seqMap){
+    return text.replace(/@(Q-)(\d{1,4})\b/gi, (m, prefix, num) => {
+      const oldSeq = parseInt(num, 10);
+      return seqMap.has(oldSeq) ? ('@' + stampId(seqMap.get(oldSeq))) : m;
+    });
+  }
+  function deleteThread(id, renumber){
+    state.threads = state.threads.filter(x => x.id !== id);
+    if(renumber){
+      state.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
+      const seqMap = new Map();
+      state.threads.forEach((th, i) => {
+        const newSeq = i + 1;
+        if(th.seq !== newSeq){ seqMap.set(th.seq, newSeq); th.seq = newSeq; }
+      });
+      if(seqMap.size){
+        state.threads.forEach(th => { th.entries.forEach(e => { if(e.text) e.text = rewriteMentions(e.text, seqMap); }); });
+      }
+    }
+    if(selectedId === id) selectedId = null;
+    persist(); populateFilterOptions(); renderList(); renderDetail();
+  }
+
   // ---------- Composer/modal widgets: image attachments + @mention autocomplete ----------
   function renderComposerImages(){
     const wrap = $('#composerImagesWrap');
@@ -914,7 +975,7 @@
       if(t.entries.length === 0){ rows.push([stampId(t.seq), t.topic, t.document, t.status, fmtDateTime(t.createdAt), '', '', '', '', '']); }
       t.entries.forEach(e => {
         rows.push([stampId(t.seq), t.topic, t.document, t.status, fmtDateTime(t.createdAt),
-          e.role === 'Q' ? 'Question' : 'Answer', fmtDateTime(e.date), e.text, e.edited ? 'Yes' : 'No', (e.images ? e.images.length : 0)]);
+          e.role === 'Q' ? `Question [${state.roleLabels.Q}]` : `Answer [${state.roleLabels.A}]`, fmtDateTime(e.date), e.text, e.edited ? 'Yes' : 'No', (e.images ? e.images.length : 0)]);
       });
     });
     const csv = rows.map(r => r.map(toCsvField).join(',')).join('\n');
@@ -1072,6 +1133,38 @@
     selectThread(thread.id);
     composerRole = 'A';
     renderDetail();
+  });
+
+  const deleteModalBackdrop = $('#deleteModalBackdrop');
+  $('#deleteModalCancel').addEventListener('click', () => { deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; });
+  deleteModalBackdrop.addEventListener('click', (e) => { if(e.target === deleteModalBackdrop){ deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; } });
+  $('#deleteModalKeep').addEventListener('click', () => {
+    if(pendingDeleteId) deleteThread(pendingDeleteId, false);
+    pendingDeleteId = null;
+    deleteModalBackdrop.classList.remove('show');
+  });
+  $('#deleteModalRenumber').addEventListener('click', () => {
+    if(pendingDeleteId) deleteThread(pendingDeleteId, true);
+    pendingDeleteId = null;
+    deleteModalBackdrop.classList.remove('show');
+  });
+
+  const roleLabelsModalBackdrop = $('#roleLabelsModalBackdrop');
+  $('#roleLabelsBtn').addEventListener('click', () => {
+    $('#roleLabelQ').value = state.roleLabels.Q;
+    $('#roleLabelA').value = state.roleLabels.A;
+    roleLabelsModalBackdrop.classList.add('show');
+  });
+  $('#roleLabelsCancel').addEventListener('click', () => roleLabelsModalBackdrop.classList.remove('show'));
+  roleLabelsModalBackdrop.addEventListener('click', (e) => { if(e.target === roleLabelsModalBackdrop) roleLabelsModalBackdrop.classList.remove('show'); });
+  $('#roleLabelsSave').addEventListener('click', () => {
+    state.roleLabels = {
+      Q: $('#roleLabelQ').value.trim() || 'Authorities',
+      A: $('#roleLabelA').value.trim() || 'CCP',
+    };
+    persist();
+    renderDetail();
+    roleLabelsModalBackdrop.classList.remove('show');
   });
 
   // ---------- Init ----------

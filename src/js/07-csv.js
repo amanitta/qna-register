@@ -10,7 +10,7 @@
       if(t.entries.length === 0){ rows.push([stampId(t.seq), t.topic, t.document, t.status, fmtDateTime(t.createdAt), '', '', '', '', '']); }
       t.entries.forEach(e => {
         rows.push([stampId(t.seq), t.topic, t.document, t.status, fmtDateTime(t.createdAt),
-          e.role === 'Q' ? 'Question' : 'Answer', fmtDateTime(e.date), e.text, e.edited ? 'Yes' : 'No', (e.images ? e.images.length : 0)]);
+          e.role === 'Q' ? `Question [${state.roleLabels.Q}]` : `Answer [${state.roleLabels.A}]`, fmtDateTime(e.date), e.text, e.edited ? 'Yes' : 'No', (e.images ? e.images.length : 0)]);
       });
     });
     const csv = rows.map(r => r.map(toCsvField).join(',')).join('\n');
