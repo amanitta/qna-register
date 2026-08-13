@@ -21,7 +21,7 @@
     } else {
       composerEl.classList.remove('collapsed');
       composerEl.style.flex = '0 0 auto';
-      composerEl.style.height = ui.composerHeight + 'px';
+      composerEl.style.height = ui.composerHeightCustom ? (ui.composerHeight + 'px') : '';
     }
   }
   function updateVDividerIcons(){
@@ -64,6 +64,7 @@
   });
   const startComposerDrag = initDragAxis('resizing-row', () => !ui.composerCollapsed, (_clientX, clientY) => {
     const detailRect = detailEl.getBoundingClientRect();
+    ui.composerHeightCustom = true;
     ui.composerHeight = Math.max(120, Math.min(560, detailRect.bottom - clientY));
     applyVSplit();
   });

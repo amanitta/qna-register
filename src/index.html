@@ -88,12 +88,12 @@
 
 <div class="modal-backdrop" id="deleteModalBackdrop">
   <div class="modal" style="max-width:440px;">
-    <h2>Delete <span id="deleteModalStamp"></span>?</h2>
-    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 18px;">This removes the question and its full history. This cannot be undone. Keep the existing Q-numbers, or close the gap by renumbering the remaining questions (any @Q-XXX references are rewritten automatically).</p>
+    <h2 id="pendingActionTitle">Delete?</h2>
+    <p id="pendingActionBody" style="font-size:13px;color:var(--ink-soft);margin:0 0 18px;"></p>
     <div class="modal-actions">
       <button class="btn secondary" id="deleteModalCancel">Cancel</button>
-      <button class="btn secondary" id="deleteModalKeep">Delete, keep numbering</button>
-      <button class="btn" id="deleteModalRenumber">Delete and renumber</button>
+      <button class="btn secondary" id="deleteModalKeep">Keep numbering</button>
+      <button class="btn" id="deleteModalRenumber">Renumber</button>
     </div>
   </div>
 </div>

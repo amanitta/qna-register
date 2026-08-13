@@ -1,19 +1,21 @@
   // ---------- Shared state, DOM refs, formatting helpers ----------
   const STORAGE_KEY = 'qna-register-data-v2';
   const UI_KEY = 'qna-register-ui-v2';
+  const DRAFTS_KEY = 'qna-register-drafts-v1';
   const IDB_NAME = 'qna-register-fs';
   const IDB_STORE = 'handles';
   const STATUSES = ['Open','Answered','Closed'];
 
   let state = { label: 'Assessment', roleLabels: { Q: 'Authorities', A: 'CCP' }, threads: [] };
-  let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerCollapsed: false };
+  let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerHeightCustom: false, composerCollapsed: false };
   let selectedId = null;
   let filters = { status: 'all', topic: 'all', doc: 'all', search: '' };
   let composerRole = 'Q';
   let composerImages = [];
   let modalImages = [];
   let editingEntryIdx = null;
-  let pendingDeleteId = null;
+  let pendingAction = null; // { type:'delete', threadId } | { type:'reorder', orderedIds }
+  let drafts = {}; // keyed by thread.id; local-only, never part of `state` / the shared file
 
   let fileHandle = null;
   let fileName = null;
@@ -50,7 +52,20 @@
     if(typeof s.roleLabels.Q !== 'string' || !s.roleLabels.Q.trim()) s.roleLabels.Q = 'Authorities';
     if(typeof s.roleLabels.A !== 'string' || !s.roleLabels.A.trim()) s.roleLabels.A = 'CCP';
   }
+  function migrateOrder(parsed){
+    parsed.threads.forEach(t => {
+      if(typeof t.order !== 'number' || !isFinite(t.order)) t.order = t.seq || 0;
+    });
+  }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+  // Chromium doesn't insert a newline into a textarea on Alt+Enter by default, so the
+  // Jupyter-style "Alt+Enter = newline" shortcut has to insert it manually.
+  function insertNewlineAtCursor(el){
+    const start = el.selectionStart, end = el.selectionEnd;
+    el.value = el.value.slice(0, start) + '\n' + el.value.slice(end);
+    el.selectionStart = el.selectionEnd = start + 1;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
   }
 

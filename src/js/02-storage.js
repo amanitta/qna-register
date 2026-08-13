@@ -46,6 +46,7 @@
             (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
           });
           migrateRoleLabels(parsed);
+          migrateOrder(parsed);
           parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
           state = parsed;
         }
@@ -59,6 +60,14 @@
   function saveUiPrefs(){
     try{ localStorage.setItem(UI_KEY, JSON.stringify(ui)); }
     catch(e){ console.error('UI prefs save error', e); }
+  }
+  function loadDrafts(){
+    try{ const raw = localStorage.getItem(DRAFTS_KEY); if(raw){ const parsed = JSON.parse(raw); if(parsed && typeof parsed === 'object') drafts = parsed; } }
+    catch(e){ /* defaults */ }
+  }
+  function saveDrafts(){
+    try{ localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)); }
+    catch(e){ console.error('Drafts save error', e); }
   }
 
   // ---------- Shared file connection ----------
@@ -88,9 +97,11 @@
         (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
       });
       migrateRoleLabels(parsed);
+      migrateOrder(parsed);
       parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
       state = parsed;
       cacheLocally();
+      drafts = {}; saveDrafts();
       selectedId = null;
       populateFilterOptions(); renderList(); renderDetail();
       return true;

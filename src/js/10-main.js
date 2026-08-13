@@ -3,6 +3,7 @@
     detailEl.innerHTML = `<div class="detail-empty">Loading…</div>`;
     loadLocalCache();
     loadUiPrefs();
+    loadDrafts();
     applyLayout();
     updateDividerIcons();
     populateFilterOptions();
