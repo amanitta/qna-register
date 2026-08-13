@@ -67,7 +67,11 @@
   select.filter-select{ width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:3px; background:var(--card); font-size:12.5px; color:var(--ink); }
 
   .thread-list{ flex:1; overflow-y:auto; padding:8px; }
-  .thread-card{ padding:12px 12px; border:1px solid transparent; border-radius:4px; margin-bottom:4px; cursor:pointer; }
+  .thread-card{ position:relative; padding:12px 12px; border:1px solid transparent; border-radius:4px; margin-bottom:4px; cursor:pointer; }
+  .thread-card[draggable]{ cursor:grab; }
+  .thread-card.drag-over-before{ box-shadow: inset 0 2px 0 0 var(--ink); }
+  .thread-card.drag-over-after{ box-shadow: inset 0 -2px 0 0 var(--ink); }
+  .draft-dot{ position:absolute; top:10px; right:10px; width:7px; height:7px; border-radius:50%; background:var(--rust); }
   .thread-card:hover{ background:var(--card); border-color:var(--line); }
   .thread-card.selected{ background:var(--card); border-color:var(--ink); }
   .thread-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
@@ -153,7 +157,7 @@
   .hint-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:-4px 0 8px; flex-wrap:wrap; }
   .paste-hint{ font-size:11px; color:var(--ink-soft); }
   .preview-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); font-weight:600; margin:2px 0 4px; }
-  .live-preview{ border:1px dashed var(--line); border-radius:6px; padding:10px 12px; margin-bottom:10px; background:var(--paper); min-height:20px; font-size:13.5px; line-height:1.5; }
+  .live-preview{ border:1px dashed var(--line); border-radius:6px; padding:10px 12px; margin-bottom:10px; background:var(--paper); min-height:20px; max-height:160px; overflow-y:auto; font-size:13.5px; line-height:1.5; }
   .live-preview .empty-note{ color:var(--ink-soft); font-style:italic; font-size:12.5px; }
 
   .mention-autocomplete{ position:absolute; top:100%; left:0; z-index:30; background:var(--card); border:1px solid var(--line); border-radius:4px; box-shadow:0 6px 18px rgba(27,33,48,0.15); max-height:180px; overflow-y:auto; min-width:220px; display:none; margin-top:2px; }
@@ -268,12 +272,12 @@
 
 <div class="modal-backdrop" id="deleteModalBackdrop">
   <div class="modal" style="max-width:440px;">
-    <h2>Delete <span id="deleteModalStamp"></span>?</h2>
-    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 18px;">This removes the question and its full history. This cannot be undone. Keep the existing Q-numbers, or close the gap by renumbering the remaining questions (any @Q-XXX references are rewritten automatically).</p>
+    <h2 id="pendingActionTitle">Delete?</h2>
+    <p id="pendingActionBody" style="font-size:13px;color:var(--ink-soft);margin:0 0 18px;"></p>
     <div class="modal-actions">
       <button class="btn secondary" id="deleteModalCancel">Cancel</button>
-      <button class="btn secondary" id="deleteModalKeep">Delete, keep numbering</button>
-      <button class="btn" id="deleteModalRenumber">Delete and renumber</button>
+      <button class="btn secondary" id="deleteModalKeep">Keep numbering</button>
+      <button class="btn" id="deleteModalRenumber">Renumber</button>
     </div>
   </div>
 </div>
@@ -302,19 +306,21 @@
   // ---------- Shared state, DOM refs, formatting helpers ----------
   const STORAGE_KEY = 'qna-register-data-v2';
   const UI_KEY = 'qna-register-ui-v2';
+  const DRAFTS_KEY = 'qna-register-drafts-v1';
   const IDB_NAME = 'qna-register-fs';
   const IDB_STORE = 'handles';
   const STATUSES = ['Open','Answered','Closed'];
 
   let state = { label: 'Assessment', roleLabels: { Q: 'Authorities', A: 'CCP' }, threads: [] };
-  let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerCollapsed: false };
+  let ui = { sidebarWidth: 340, sidebarCollapsed: false, composerHeight: 220, composerHeightCustom: false, composerCollapsed: false };
   let selectedId = null;
   let filters = { status: 'all', topic: 'all', doc: 'all', search: '' };
   let composerRole = 'Q';
   let composerImages = [];
   let modalImages = [];
   let editingEntryIdx = null;
-  let pendingDeleteId = null;
+  let pendingAction = null; // { type:'delete', threadId } | { type:'reorder', orderedIds }
+  let drafts = {}; // keyed by thread.id; local-only, never part of `state` / the shared file
 
   let fileHandle = null;
   let fileName = null;
@@ -351,8 +357,21 @@
     if(typeof s.roleLabels.Q !== 'string' || !s.roleLabels.Q.trim()) s.roleLabels.Q = 'Authorities';
     if(typeof s.roleLabels.A !== 'string' || !s.roleLabels.A.trim()) s.roleLabels.A = 'CCP';
   }
+  function migrateOrder(parsed){
+    parsed.threads.forEach(t => {
+      if(typeof t.order !== 'number' || !isFinite(t.order)) t.order = t.seq || 0;
+    });
+  }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+  // Chromium doesn't insert a newline into a textarea on Alt+Enter by default, so the
+  // Jupyter-style "Alt+Enter = newline" shortcut has to insert it manually.
+  function insertNewlineAtCursor(el){
+    const start = el.selectionStart, end = el.selectionEnd;
+    el.value = el.value.slice(0, start) + '\n' + el.value.slice(end);
+    el.selectionStart = el.selectionEnd = start + 1;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   // ---------- IndexedDB: remembers the picked file handle across reloads ----------
@@ -403,6 +422,7 @@
             (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
           });
           migrateRoleLabels(parsed);
+          migrateOrder(parsed);
           parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
           state = parsed;
         }
@@ -416,6 +436,14 @@
   function saveUiPrefs(){
     try{ localStorage.setItem(UI_KEY, JSON.stringify(ui)); }
     catch(e){ console.error('UI prefs save error', e); }
+  }
+  function loadDrafts(){
+    try{ const raw = localStorage.getItem(DRAFTS_KEY); if(raw){ const parsed = JSON.parse(raw); if(parsed && typeof parsed === 'object') drafts = parsed; } }
+    catch(e){ /* defaults */ }
+  }
+  function saveDrafts(){
+    try{ localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)); }
+    catch(e){ console.error('Drafts save error', e); }
   }
 
   // ---------- Shared file connection ----------
@@ -445,9 +473,11 @@
         (t.entries||[]).forEach(e => { if(!Array.isArray(e.images)) e.images = []; });
       });
       migrateRoleLabels(parsed);
+      migrateOrder(parsed);
       parsed.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
       state = parsed;
       cacheLocally();
+      drafts = {}; saveDrafts();
       selectedId = null;
       populateFilterOptions(); renderList(); renderDetail();
       return true;
@@ -559,6 +589,7 @@
   }
 
   // ---------- Filters / list ----------
+  let draggedThreadId = null;
   function uniqueValues(field){
     const set = new Set();
     state.threads.forEach(t => { if(t[field]) set.add(t[field]); });
@@ -587,7 +618,7 @@
         if(!hay.includes(q)) return false;
       }
       return true;
-    }).sort((a,b)=> (a.seq||0) - (b.seq||0));
+    }).sort((a,b)=> (a.order||0) - (b.order||0));
   }
   function lastEntrySnippet(t){
     if(!t.entries.length) return 'No entries yet.';
@@ -595,8 +626,38 @@
     const roleLabel = last.role === 'Q' ? 'Q: ' : 'A: ';
     return roleLabel + (last.text || (last.images && last.images.length ? '[image attached]' : ''));
   }
+  function snapshotCurrentDraft(){
+    if(!selectedId) return;
+    const composerTextEl = $('#composerText');
+    const composerText = composerTextEl ? composerTextEl.value : '';
+    const editTextEl = $('#editEntryText');
+    const editText = editTextEl ? editTextEl.value : '';
+    const hasContent = composerText.trim() !== '' || composerImages.length > 0 || editingEntryIdx !== null;
+    if(!hasContent){
+      delete drafts[selectedId];
+    } else {
+      drafts[selectedId] = {
+        composerRole,
+        composerText,
+        composerImages: composerImages.slice(),
+        editingEntryIdx,
+        editText: editingEntryIdx !== null ? editText : ''
+      };
+    }
+    saveDrafts();
+  }
+  function draftHasContent(id){
+    const d = drafts[id];
+    if(!d) return false;
+    return (d.composerText||'').trim() !== '' || (d.composerImages||[]).length > 0 || d.editingEntryIdx != null;
+  }
   function selectThread(id){
-    selectedId = id; composerRole = 'Q'; composerImages = []; editingEntryIdx = null;
+    snapshotCurrentDraft();
+    selectedId = id;
+    const d = drafts[id];
+    composerRole = d ? d.composerRole : 'Q';
+    composerImages = d ? d.composerImages.slice() : [];
+    editingEntryIdx = d && d.editingEntryIdx != null ? d.editingEntryIdx : null;
     renderList(); renderDetail();
   }
   function renderList(){
@@ -610,7 +671,8 @@
       return;
     }
     threadListEl.innerHTML = items.map(t => `
-      <div class="thread-card ${t.id===selectedId ? 'selected':''}" data-id="${t.id}">
+      <div class="thread-card ${t.id===selectedId ? 'selected':''}" draggable="true" data-id="${t.id}">
+        ${draftHasContent(t.id) ? '<span class="draft-dot" title="Unsaved draft in this browser"></span>' : ''}
         <div class="thread-top">
           <span class="stamp">${stampId(t.seq)}</span>
           <span class="status-badge ${statusClass(t.status)}">${escapeHtml(t.status)}</span>
@@ -622,7 +684,54 @@
     `).join('');
     threadListEl.querySelectorAll('.thread-card').forEach(card => {
       card.addEventListener('click', () => selectThread(card.getAttribute('data-id')));
+      card.addEventListener('dragstart', (e) => {
+        draggedThreadId = card.getAttribute('data-id');
+        e.dataTransfer.effectAllowed = 'move';
+        try{ e.dataTransfer.setData('text/plain', draggedThreadId); }catch(err){}
+      });
+      card.addEventListener('dragover', (e) => {
+        if(!draggedThreadId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if(card.getAttribute('data-id') === draggedThreadId) return;
+        const rect = card.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        threadListEl.querySelectorAll('.thread-card').forEach(c => c.classList.remove('drag-over-before','drag-over-after'));
+        card.classList.add(before ? 'drag-over-before' : 'drag-over-after');
+      });
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const targetId = card.getAttribute('data-id');
+        const before = card.classList.contains('drag-over-before');
+        threadListEl.querySelectorAll('.thread-card').forEach(c => c.classList.remove('drag-over-before','drag-over-after'));
+        if(!draggedThreadId || draggedThreadId === targetId){ draggedThreadId = null; return; }
+        finalizeReorder(draggedThreadId, targetId, before ? 'before' : 'after');
+        draggedThreadId = null;
+      });
+      card.addEventListener('dragend', () => {
+        threadListEl.querySelectorAll('.thread-card').forEach(c => c.classList.remove('drag-over-before','drag-over-after'));
+        draggedThreadId = null;
+      });
     });
+  }
+  function finalizeReorder(draggedId, targetId, position){
+    const ordered = state.threads.slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    const draggedIdx = ordered.findIndex(th=>th.id===draggedId);
+    if(draggedIdx === -1) return;
+    const [draggedThread] = ordered.splice(draggedIdx, 1);
+    let targetIdx = ordered.findIndex(th=>th.id===targetId);
+    if(targetIdx === -1) return;
+    if(position === 'after') targetIdx += 1;
+    ordered.splice(targetIdx, 0, draggedThread);
+    ordered.forEach((th, i) => { th.order = i + 1; });
+    persist();
+    renderList();
+    pendingAction = { type: 'reorder', orderedIds: ordered.map(th => th.id) };
+    $('#pendingActionTitle').textContent = 'Renumber after reorder?';
+    $('#pendingActionBody').textContent = 'The question order has changed. Keep the existing Q-numbers (they may no longer match the list position), or renumber them to match the new order (any @Q-XXX references are rewritten automatically).';
+    $('#deleteModalKeep').textContent = 'Keep numbering';
+    $('#deleteModalRenumber').textContent = 'Renumber to match';
+    $('#deleteModalBackdrop').classList.add('show');
   }
   function openLightbox(src){ $('#lightboxImg').src = src; $('#lightbox').classList.add('show'); }
 
@@ -697,8 +806,10 @@
       detailEl.innerHTML = `<div class="detail-empty">Select a question on the left, or create a new one to start tracking it here.</div>`;
       return;
     }
+    const draft = drafts[t.id];
     const entriesHtml = t.entries.map((e, idx) => {
       if(editingEntryIdx === idx){
+        const useDraftEdit = draft && draft.editingEntryIdx === idx && typeof draft.editText === 'string';
         return `
         <div class="entry role-${e.role}">
           <div class="entry-card" style="max-width:90%;">
@@ -707,7 +818,9 @@
               <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             </div>
             <div class="edit-entry-box">
-              <textarea id="editEntryText">${escapeHtml(e.text || '')}</textarea>
+              <textarea id="editEntryText">${escapeHtml(useDraftEdit ? draft.editText : (e.text || ''))}</textarea>
+              <div class="preview-label">Preview</div>
+              <div class="live-preview entry-text" id="editEntryPreview"></div>
               <div class="edit-entry-actions">
                 <button class="btn secondary small" id="cancelEditEntry" type="button">Cancel</button>
                 <button class="btn small" id="saveEditEntry" type="button" data-idx="${idx}">Save</button>
@@ -768,7 +881,7 @@
         <div class="composer-images" id="composerImagesWrap"></div>
         <div class="hint-row"><span class="paste-hint">Markdown &amp; $LaTeX$ supported. Paste an image, or use "+ Image". Type @Q-001 to reference another question.</span></div>
         <div class="textarea-wrap">
-          <textarea id="composerText" placeholder="Add a ${composerRole === 'Q' ? 'follow-up question' : 'answer'}…"></textarea>
+          <textarea id="composerText" placeholder="Add a ${composerRole === 'Q' ? 'follow-up question' : 'answer'}…">${escapeHtml((draft && draft.composerText) || '')}</textarea>
           <div class="mention-autocomplete" id="composerMentionBox"></div>
         </div>
         <div class="preview-label">Preview</div>
@@ -793,8 +906,11 @@
     $('#editDoc').addEventListener('change', (e) => { t.document = e.target.value.trim(); persist(); populateFilterOptions(); renderList(); });
     $('#editStatus').addEventListener('change', (e) => { t.status = e.target.value; persist(); renderList(); });
     $('#deleteThreadBtn').addEventListener('click', () => {
-      pendingDeleteId = t.id;
-      $('#deleteModalStamp').textContent = stampId(t.seq);
+      pendingAction = { type: 'delete', threadId: t.id };
+      $('#pendingActionTitle').textContent = 'Delete ' + stampId(t.seq) + '?';
+      $('#pendingActionBody').textContent = 'This removes the question and its full history. This cannot be undone. Keep the existing Q-numbers, or close the gap by renumbering the remaining questions (any @Q-XXX references are rewritten automatically).';
+      $('#deleteModalKeep').textContent = 'Delete, keep numbering';
+      $('#deleteModalRenumber').textContent = 'Delete and renumber';
       $('#deleteModalBackdrop').classList.add('show');
     });
     detailEl.querySelectorAll('.role-toggle').forEach(btn => {
@@ -817,10 +933,9 @@
       });
     });
     const cancelEditBtn = $('#cancelEditEntry');
-    if(cancelEditBtn) cancelEditBtn.addEventListener('click', () => { editingEntryIdx = null; renderDetail(); });
+    if(cancelEditBtn) cancelEditBtn.addEventListener('click', () => { editingEntryIdx = null; clearEditDraft(t.id); renderDetail(); });
     const saveEditBtn = $('#saveEditEntry');
-    if(saveEditBtn) saveEditBtn.addEventListener('click', () => {
-      const idx = Number(saveEditBtn.getAttribute('data-idx'));
+    function submitEditEntry(idx){
       const newText = $('#editEntryText').value.trim();
       const entry = t.entries[idx];
       if(newText !== (entry.text || '')){
@@ -828,7 +943,20 @@
         persist(); renderList();
       }
       editingEntryIdx = null;
+      clearEditDraft(t.id);
       renderDetail();
+    }
+    if(saveEditBtn) saveEditBtn.addEventListener('click', () => submitEditEntry(Number(saveEditBtn.getAttribute('data-idx'))));
+    const editTextareaEl = $('#editEntryText');
+    const editPreviewEl = $('#editEntryPreview');
+    if(editTextareaEl && editPreviewEl){
+      updateLivePreview(editTextareaEl, editPreviewEl);
+      editTextareaEl.addEventListener('input', () => updateLivePreview(editTextareaEl, editPreviewEl));
+    }
+    if(editTextareaEl) editTextareaEl.addEventListener('keydown', (e) => {
+      if(e.key !== 'Enter') return;
+      if(e.altKey){ e.preventDefault(); insertNewlineAtCursor(editTextareaEl); return; }
+      if(!e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); submitEditEntry(Number(saveEditBtn.getAttribute('data-idx'))); }
     });
 
     const attachBtn = $('#attachImgBtn');
@@ -848,9 +976,10 @@
       if(imageItem){ e.preventDefault(); const file = imageItem.getAsFile(); if(file) addImageFile(file, composerImages, renderComposerImages); }
     });
     textarea.addEventListener('input', () => updateLivePreview(textarea, previewEl));
+    updateLivePreview(textarea, previewEl);
     setupMentionAutocomplete(textarea, $('#composerMentionBox'));
 
-    $('#addEntryBtn').addEventListener('click', () => {
+    function submitComposerEntry(){
       const text = textarea.value.trim();
       if(!text && composerImages.length === 0) return;
       t.entries.push({ role: composerRole, text, date: new Date().toISOString(), images: composerImages.slice(), edited:false });
@@ -858,8 +987,15 @@
       else if(composerRole === 'A' && t.status !== 'Closed'){ t.status = 'Answered'; }
       composerRole = composerRole === 'Q' ? 'A' : 'Q';
       composerImages = [];
+      clearComposerDraft(t.id);
       persist();
       renderList(); renderDetail();
+    }
+    $('#addEntryBtn').addEventListener('click', submitComposerEntry);
+    textarea.addEventListener('keydown', (e) => {
+      if(e.key !== 'Enter') return;
+      if(e.altKey){ e.preventDefault(); insertNewlineAtCursor(textarea); return; }
+      if(!e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); submitComposerEntry(); }
     });
 
     const hDivider = detailEl.querySelector('#hDivider');
@@ -875,24 +1011,51 @@
     if(logEl) logEl.scrollTop = logEl.scrollHeight;
   }
 
+  function clearComposerDraft(threadId){
+    const d = drafts[threadId];
+    if(!d) return;
+    if(d.editingEntryIdx != null){
+      d.composerText = ''; d.composerImages = []; d.composerRole = 'Q';
+    } else {
+      delete drafts[threadId];
+    }
+    saveDrafts();
+  }
+  function clearEditDraft(threadId){
+    const d = drafts[threadId];
+    if(!d) return;
+    const hasComposerContent = (d.composerText||'').trim() !== '' || (d.composerImages||[]).length > 0;
+    if(hasComposerContent){
+      d.editingEntryIdx = null; d.editText = '';
+    } else {
+      delete drafts[threadId];
+    }
+    saveDrafts();
+  }
+
   function rewriteMentions(text, seqMap){
     return text.replace(/@(Q-)(\d{1,4})\b/gi, (m, prefix, num) => {
       const oldSeq = parseInt(num, 10);
       return seqMap.has(oldSeq) ? ('@' + stampId(seqMap.get(oldSeq))) : m;
     });
   }
+  function renumberSeqToMatchOrder(threadsInOrder){
+    const seqMap = new Map();
+    threadsInOrder.forEach((th, i) => {
+      const newSeq = i + 1;
+      if(th.seq !== newSeq){ seqMap.set(th.seq, newSeq); th.seq = newSeq; }
+    });
+    if(seqMap.size){
+      state.threads.forEach(th => { th.entries.forEach(e => { if(e.text) e.text = rewriteMentions(e.text, seqMap); }); });
+    }
+    return seqMap;
+  }
   function deleteThread(id, renumber){
     state.threads = state.threads.filter(x => x.id !== id);
     if(renumber){
       state.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
-      const seqMap = new Map();
-      state.threads.forEach((th, i) => {
-        const newSeq = i + 1;
-        if(th.seq !== newSeq){ seqMap.set(th.seq, newSeq); th.seq = newSeq; }
-      });
-      if(seqMap.size){
-        state.threads.forEach(th => { th.entries.forEach(e => { if(e.text) e.text = rewriteMentions(e.text, seqMap); }); });
-      }
+      renumberSeqToMatchOrder(state.threads);
+      state.threads.forEach((th, i) => { th.order = i + 1; });
     }
     if(selectedId === id) selectedId = null;
     persist(); populateFilterOptions(); renderList(); renderDetail();
@@ -1005,7 +1168,7 @@
     } else {
       composerEl.classList.remove('collapsed');
       composerEl.style.flex = '0 0 auto';
-      composerEl.style.height = ui.composerHeight + 'px';
+      composerEl.style.height = ui.composerHeightCustom ? (ui.composerHeight + 'px') : '';
     }
   }
   function updateVDividerIcons(){
@@ -1048,6 +1211,7 @@
   });
   const startComposerDrag = initDragAxis('resizing-row', () => !ui.composerCollapsed, (_clientX, clientY) => {
     const detailRect = detailEl.getBoundingClientRect();
+    ui.composerHeightCustom = true;
     ui.composerHeight = Math.max(120, Math.min(560, detailRect.bottom - clientY));
     applyVSplit();
   });
@@ -1114,7 +1278,7 @@
   modalBackdrop.addEventListener('click', (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove('show'); });
   $('#lightbox').addEventListener('click', () => $('#lightbox').classList.remove('show'));
 
-  $('#modalCreate').addEventListener('click', () => {
+  function submitNewQuestion(){
     const topic = $('#mTopic').value.trim();
     const document_ = $('#mDoc').value.trim();
     const question = modalQuestion.value.trim();
@@ -1122,7 +1286,7 @@
     const seq = nextSeq();
     const thread = {
       id: 'th_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
-      seq, topic: topic || 'Untitled topic', document: document_, status: 'Open',
+      seq, order: seq, topic: topic || 'Untitled topic', document: document_, status: 'Open',
       createdAt: new Date().toISOString(),
       entries: [{ role:'Q', text: question, date: new Date().toISOString(), images: modalImages.slice(), edited:false }]
     };
@@ -1133,20 +1297,37 @@
     selectThread(thread.id);
     composerRole = 'A';
     renderDetail();
+  }
+  $('#modalCreate').addEventListener('click', submitNewQuestion);
+  modalQuestion.addEventListener('keydown', (e) => {
+    if(e.key !== 'Enter') return;
+    if(e.altKey){ e.preventDefault(); insertNewlineAtCursor(modalQuestion); return; }
+    if(!e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); submitNewQuestion(); }
   });
 
   const deleteModalBackdrop = $('#deleteModalBackdrop');
-  $('#deleteModalCancel').addEventListener('click', () => { deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; });
-  deleteModalBackdrop.addEventListener('click', (e) => { if(e.target === deleteModalBackdrop){ deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; } });
-  $('#deleteModalKeep').addEventListener('click', () => {
-    if(pendingDeleteId) deleteThread(pendingDeleteId, false);
-    pendingDeleteId = null;
+  function closePendingActionModal(){
     deleteModalBackdrop.classList.remove('show');
+    pendingAction = null;
+  }
+  $('#deleteModalCancel').addEventListener('click', closePendingActionModal);
+  deleteModalBackdrop.addEventListener('click', (e) => { if(e.target === deleteModalBackdrop) closePendingActionModal(); });
+  $('#deleteModalKeep').addEventListener('click', () => {
+    if(pendingAction && pendingAction.type === 'delete'){
+      deleteThread(pendingAction.threadId, false);
+    }
+    // reorder: order was already applied + persisted at drop time — nothing further to do
+    closePendingActionModal();
   });
   $('#deleteModalRenumber').addEventListener('click', () => {
-    if(pendingDeleteId) deleteThread(pendingDeleteId, true);
-    pendingDeleteId = null;
-    deleteModalBackdrop.classList.remove('show');
+    if(pendingAction && pendingAction.type === 'delete'){
+      deleteThread(pendingAction.threadId, true);
+    } else if(pendingAction && pendingAction.type === 'reorder'){
+      const ordered = pendingAction.orderedIds.map(id => state.threads.find(t=>t.id===id)).filter(Boolean);
+      renumberSeqToMatchOrder(ordered);
+      persist(); populateFilterOptions(); renderList(); renderDetail();
+    }
+    closePendingActionModal();
   });
 
   const roleLabelsModalBackdrop = $('#roleLabelsModalBackdrop');
@@ -1172,6 +1353,7 @@
     detailEl.innerHTML = `<div class="detail-empty">Loading…</div>`;
     loadLocalCache();
     loadUiPrefs();
+    loadDrafts();
     applyLayout();
     updateDividerIcons();
     populateFilterOptions();

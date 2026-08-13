@@ -55,7 +55,7 @@
   modalBackdrop.addEventListener('click', (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove('show'); });
   $('#lightbox').addEventListener('click', () => $('#lightbox').classList.remove('show'));
 
-  $('#modalCreate').addEventListener('click', () => {
+  function submitNewQuestion(){
     const topic = $('#mTopic').value.trim();
     const document_ = $('#mDoc').value.trim();
     const question = modalQuestion.value.trim();
@@ -63,7 +63,7 @@
     const seq = nextSeq();
     const thread = {
       id: 'th_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
-      seq, topic: topic || 'Untitled topic', document: document_, status: 'Open',
+      seq, order: seq, topic: topic || 'Untitled topic', document: document_, status: 'Open',
       createdAt: new Date().toISOString(),
       entries: [{ role:'Q', text: question, date: new Date().toISOString(), images: modalImages.slice(), edited:false }]
     };
@@ -74,20 +74,37 @@
     selectThread(thread.id);
     composerRole = 'A';
     renderDetail();
+  }
+  $('#modalCreate').addEventListener('click', submitNewQuestion);
+  modalQuestion.addEventListener('keydown', (e) => {
+    if(e.key !== 'Enter') return;
+    if(e.altKey){ e.preventDefault(); insertNewlineAtCursor(modalQuestion); return; }
+    if(!e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); submitNewQuestion(); }
   });
 
   const deleteModalBackdrop = $('#deleteModalBackdrop');
-  $('#deleteModalCancel').addEventListener('click', () => { deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; });
-  deleteModalBackdrop.addEventListener('click', (e) => { if(e.target === deleteModalBackdrop){ deleteModalBackdrop.classList.remove('show'); pendingDeleteId = null; } });
-  $('#deleteModalKeep').addEventListener('click', () => {
-    if(pendingDeleteId) deleteThread(pendingDeleteId, false);
-    pendingDeleteId = null;
+  function closePendingActionModal(){
     deleteModalBackdrop.classList.remove('show');
+    pendingAction = null;
+  }
+  $('#deleteModalCancel').addEventListener('click', closePendingActionModal);
+  deleteModalBackdrop.addEventListener('click', (e) => { if(e.target === deleteModalBackdrop) closePendingActionModal(); });
+  $('#deleteModalKeep').addEventListener('click', () => {
+    if(pendingAction && pendingAction.type === 'delete'){
+      deleteThread(pendingAction.threadId, false);
+    }
+    // reorder: order was already applied + persisted at drop time — nothing further to do
+    closePendingActionModal();
   });
   $('#deleteModalRenumber').addEventListener('click', () => {
-    if(pendingDeleteId) deleteThread(pendingDeleteId, true);
-    pendingDeleteId = null;
-    deleteModalBackdrop.classList.remove('show');
+    if(pendingAction && pendingAction.type === 'delete'){
+      deleteThread(pendingAction.threadId, true);
+    } else if(pendingAction && pendingAction.type === 'reorder'){
+      const ordered = pendingAction.orderedIds.map(id => state.threads.find(t=>t.id===id)).filter(Boolean);
+      renumberSeqToMatchOrder(ordered);
+      persist(); populateFilterOptions(); renderList(); renderDetail();
+    }
+    closePendingActionModal();
   });
 
   const roleLabelsModalBackdrop = $('#roleLabelsModalBackdrop');

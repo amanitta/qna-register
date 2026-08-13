@@ -5,8 +5,10 @@
       detailEl.innerHTML = `<div class="detail-empty">Select a question on the left, or create a new one to start tracking it here.</div>`;
       return;
     }
+    const draft = drafts[t.id];
     const entriesHtml = t.entries.map((e, idx) => {
       if(editingEntryIdx === idx){
+        const useDraftEdit = draft && draft.editingEntryIdx === idx && typeof draft.editText === 'string';
         return `
         <div class="entry role-${e.role}">
           <div class="entry-card" style="max-width:90%;">
@@ -15,7 +17,9 @@
               <span class="entry-date mono">${fmtDateTime(e.date)}</span>
             </div>
             <div class="edit-entry-box">
-              <textarea id="editEntryText">${escapeHtml(e.text || '')}</textarea>
+              <textarea id="editEntryText">${escapeHtml(useDraftEdit ? draft.editText : (e.text || ''))}</textarea>
+              <div class="preview-label">Preview</div>
+              <div class="live-preview entry-text" id="editEntryPreview"></div>
               <div class="edit-entry-actions">
                 <button class="btn secondary small" id="cancelEditEntry" type="button">Cancel</button>
                 <button class="btn small" id="saveEditEntry" type="button" data-idx="${idx}">Save</button>
@@ -76,7 +80,7 @@
         <div class="composer-images" id="composerImagesWrap"></div>
         <div class="hint-row"><span class="paste-hint">Markdown &amp; $LaTeX$ supported. Paste an image, or use "+ Image". Type @Q-001 to reference another question.</span></div>
         <div class="textarea-wrap">
-          <textarea id="composerText" placeholder="Add a ${composerRole === 'Q' ? 'follow-up question' : 'answer'}…"></textarea>
+          <textarea id="composerText" placeholder="Add a ${composerRole === 'Q' ? 'follow-up question' : 'answer'}…">${escapeHtml((draft && draft.composerText) || '')}</textarea>
           <div class="mention-autocomplete" id="composerMentionBox"></div>
         </div>
         <div class="preview-label">Preview</div>
@@ -101,8 +105,11 @@
     $('#editDoc').addEventListener('change', (e) => { t.document = e.target.value.trim(); persist(); populateFilterOptions(); renderList(); });
     $('#editStatus').addEventListener('change', (e) => { t.status = e.target.value; persist(); renderList(); });
     $('#deleteThreadBtn').addEventListener('click', () => {
-      pendingDeleteId = t.id;
-      $('#deleteModalStamp').textContent = stampId(t.seq);
+      pendingAction = { type: 'delete', threadId: t.id };
+      $('#pendingActionTitle').textContent = 'Delete ' + stampId(t.seq) + '?';
+      $('#pendingActionBody').textContent = 'This removes the question and its full history. This cannot be undone. Keep the existing Q-numbers, or close the gap by renumbering the remaining questions (any @Q-XXX references are rewritten automatically).';
+      $('#deleteModalKeep').textContent = 'Delete, keep numbering';
+      $('#deleteModalRenumber').textContent = 'Delete and renumber';
       $('#deleteModalBackdrop').classList.add('show');
     });
     detailEl.querySelectorAll('.role-toggle').forEach(btn => {
@@ -125,10 +132,9 @@
       });
     });
     const cancelEditBtn = $('#cancelEditEntry');
-    if(cancelEditBtn) cancelEditBtn.addEventListener('click', () => { editingEntryIdx = null; renderDetail(); });
+    if(cancelEditBtn) cancelEditBtn.addEventListener('click', () => { editingEntryIdx = null; clearEditDraft(t.id); renderDetail(); });
     const saveEditBtn = $('#saveEditEntry');
-    if(saveEditBtn) saveEditBtn.addEventListener('click', () => {
-      const idx = Number(saveEditBtn.getAttribute('data-idx'));
+    function submitEditEntry(idx){
       const newText = $('#editEntryText').value.trim();
       const entry = t.entries[idx];
       if(newText !== (entry.text || '')){
@@ -136,7 +142,20 @@
         persist(); renderList();
       }
       editingEntryIdx = null;
+      clearEditDraft(t.id);
       renderDetail();
+    }
+    if(saveEditBtn) saveEditBtn.addEventListener('click', () => submitEditEntry(Number(saveEditBtn.getAttribute('data-idx'))));
+    const editTextareaEl = $('#editEntryText');
+    const editPreviewEl = $('#editEntryPreview');
+    if(editTextareaEl && editPreviewEl){
+      updateLivePreview(editTextareaEl, editPreviewEl);
+      editTextareaEl.addEventListener('input', () => updateLivePreview(editTextareaEl, editPreviewEl));
+    }
+    if(editTextareaEl) editTextareaEl.addEventListener('keydown', (e) => {
+      if(e.key !== 'Enter') return;
+      if(e.altKey){ e.preventDefault(); insertNewlineAtCursor(editTextareaEl); return; }
+      if(!e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); submitEditEntry(Number(saveEditBtn.getAttribute('data-idx'))); }
     });
 
     const attachBtn = $('#attachImgBtn');
@@ -156,9 +175,10 @@
       if(imageItem){ e.preventDefault(); const file = imageItem.getAsFile(); if(file) addImageFile(file, composerImages, renderComposerImages); }
     });
     textarea.addEventListener('input', () => updateLivePreview(textarea, previewEl));
+    updateLivePreview(textarea, previewEl);
     setupMentionAutocomplete(textarea, $('#composerMentionBox'));
 
-    $('#addEntryBtn').addEventListener('click', () => {
+    function submitComposerEntry(){
       const text = textarea.value.trim();
       if(!text && composerImages.length === 0) return;
       t.entries.push({ role: composerRole, text, date: new Date().toISOString(), images: composerImages.slice(), edited:false });
@@ -166,8 +186,15 @@
       else if(composerRole === 'A' && t.status !== 'Closed'){ t.status = 'Answered'; }
       composerRole = composerRole === 'Q' ? 'A' : 'Q';
       composerImages = [];
+      clearComposerDraft(t.id);
       persist();
       renderList(); renderDetail();
+    }
+    $('#addEntryBtn').addEventListener('click', submitComposerEntry);
+    textarea.addEventListener('keydown', (e) => {
+      if(e.key !== 'Enter') return;
+      if(e.altKey){ e.preventDefault(); insertNewlineAtCursor(textarea); return; }
+      if(!e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); submitComposerEntry(); }
     });
 
     const hDivider = detailEl.querySelector('#hDivider');
@@ -183,24 +210,51 @@
     if(logEl) logEl.scrollTop = logEl.scrollHeight;
   }
 
+  function clearComposerDraft(threadId){
+    const d = drafts[threadId];
+    if(!d) return;
+    if(d.editingEntryIdx != null){
+      d.composerText = ''; d.composerImages = []; d.composerRole = 'Q';
+    } else {
+      delete drafts[threadId];
+    }
+    saveDrafts();
+  }
+  function clearEditDraft(threadId){
+    const d = drafts[threadId];
+    if(!d) return;
+    const hasComposerContent = (d.composerText||'').trim() !== '' || (d.composerImages||[]).length > 0;
+    if(hasComposerContent){
+      d.editingEntryIdx = null; d.editText = '';
+    } else {
+      delete drafts[threadId];
+    }
+    saveDrafts();
+  }
+
   function rewriteMentions(text, seqMap){
     return text.replace(/@(Q-)(\d{1,4})\b/gi, (m, prefix, num) => {
       const oldSeq = parseInt(num, 10);
       return seqMap.has(oldSeq) ? ('@' + stampId(seqMap.get(oldSeq))) : m;
     });
   }
+  function renumberSeqToMatchOrder(threadsInOrder){
+    const seqMap = new Map();
+    threadsInOrder.forEach((th, i) => {
+      const newSeq = i + 1;
+      if(th.seq !== newSeq){ seqMap.set(th.seq, newSeq); th.seq = newSeq; }
+    });
+    if(seqMap.size){
+      state.threads.forEach(th => { th.entries.forEach(e => { if(e.text) e.text = rewriteMentions(e.text, seqMap); }); });
+    }
+    return seqMap;
+  }
   function deleteThread(id, renumber){
     state.threads = state.threads.filter(x => x.id !== id);
     if(renumber){
       state.threads.sort((a,b)=> (a.seq||0) - (b.seq||0));
-      const seqMap = new Map();
-      state.threads.forEach((th, i) => {
-        const newSeq = i + 1;
-        if(th.seq !== newSeq){ seqMap.set(th.seq, newSeq); th.seq = newSeq; }
-      });
-      if(seqMap.size){
-        state.threads.forEach(th => { th.entries.forEach(e => { if(e.text) e.text = rewriteMentions(e.text, seqMap); }); });
-      }
+      renumberSeqToMatchOrder(state.threads);
+      state.threads.forEach((th, i) => { th.order = i + 1; });
     }
     if(selectedId === id) selectedId = null;
     persist(); populateFilterOptions(); renderList(); renderDetail();
